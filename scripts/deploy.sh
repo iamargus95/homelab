@@ -19,7 +19,7 @@ done
 # Pre-flight: ensure required Ansible collections are installed
 echo ""
 echo "==> [0/3] Checking Ansible collections..."
-ansible-galaxy collection install community.general --upgrade >/dev/null 2>&1
+ansible-galaxy collection install community.general community.proxmox --upgrade >/dev/null 2>&1
 
 # Phase 1: Host preparation
 echo ""

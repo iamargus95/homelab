@@ -90,16 +90,10 @@
   loop: "{{ arr_apps }}"
 
 # --- Transmission ---
-- name: Add Transmission PPA
-  ansible.builtin.apt_repository:
-    repo: "ppa:transmissionbt/ppa"
-    state: present
-
 - name: Install Transmission
   ansible.builtin.apt:
     name: transmission-daemon
     state: present
-    update_cache: yes
 
 - name: Stop Transmission for configuration
   ansible.builtin.systemd:
