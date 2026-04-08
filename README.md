@@ -1,6 +1,6 @@
 # Homelab
 
-My playground for my homelab setup, running on a two-node Proxmox VE cluster.
+My playground for my homelab setup, running on a two-node Proxmox VE cluster. Infrastructure is managed with **Terraform** (container lifecycle) and **Ansible** (software configuration).
 
 ## Cluster Overview
 
@@ -70,46 +70,49 @@ The ZFS pool on pve1 (`zfs-pve-1`) hosts a shared `/zfs-pve-1/media` dataset tha
 
 The media stack runs on pve1 and provides automated media management and streaming.
 
-| VMID | Name        | Type | OS     | Cores | RAM    | Root Disk | Swap   | Start on Boot |
-|------|-------------|------|--------|-------|--------|-----------|--------|---------------|
-| 101  | jellyfin    | LXC  | Ubuntu | 2     | 2 GiB  | 10 GB     | 512 MB | Yes           |
-| 102  | mediastack  | LXC  | Ubuntu | 2     | 4 GiB  | 15 GB     | 512 MB | Yes           |
+| VMID | Name        | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
+|------|-------------|------|--------|-------|--------|-----------|---------------|
+| 101  | jellyfin    | LXC  | Ubuntu | 2     | 2 GiB  | 10 GB     | Yes           |
+| 102  | mediastack  | LXC  | Ubuntu | 2     | 4 GiB  | 15 GB     | Yes           |
 
 Both containers are unprivileged with nesting enabled, use DHCP for networking on `vmbr0`, and resolve DNS via `1.1.1.1` and `8.8.8.8`.
 
 #### Jellyfin (CT 101)
 
-Self-hosted media server for streaming movies and TV shows. HTTPS port configured as `8920`.
+Self-hosted media server for streaming movies and TV shows.
 
 - **Media mount:** `/zfs-pve-1/media` → `/media`
 - **GPU passthrough:** Intel iGPU (`/dev/dri/card0`, `/dev/dri/renderD128`) for hardware-accelerated transcoding
-- **TUN device:** `/dev/net/tun` passed through
+- **TUN device:** `/dev/net/tun` passed through for Tailscale
+- **Port:** `8096` (HTTP)
 
 #### Mediastack (CT 102)
 
-Bundles the *arr suite and Transmission into a single container:
+Bundles the *arr suite, FlareSolverr, and Transmission into a single container:
 
-| Service          | Purpose                                         |
-|------------------|--------------------------------------------------|
-| **Transmission** | BitTorrent client for downloading media          |
-| **Prowlarr**     | Indexer manager integrating with Sonarr & Radarr |
-| **Sonarr**       | Automated TV show management and downloading     |
-| **Radarr**       | Automated movie management and downloading       |
+| Service          | Port  | Purpose                                         |
+|------------------|-------|--------------------------------------------------|
+| **Transmission** | 9091  | BitTorrent client for downloading media          |
+| **Prowlarr**     | 9696  | Indexer manager integrating with Sonarr & Radarr |
+| **Sonarr**       | 8989  | Automated TV show management and downloading     |
+| **Radarr**       | 7878  | Automated movie management and downloading       |
+| **FlareSolverr** | 8191  | Proxy server to bypass Cloudflare protection     |
 
 - **Media mount:** `/zfs-pve-1/media` → `/data`
-- **TUN device:** `/dev/net/tun` passed through (VPN support)
+- **TUN device:** `/dev/net/tun` passed through for Tailscale
+- All services run as `mediauser:mediagroup` (UID/GID 1000, mapped to host 101000)
 
 ### DNS / Ad Blocking (pve2)
 
-| VMID | Name     | Type | OS     | Cores | RAM     | Root Disk | Swap   | Start on Boot |
-|------|----------|------|--------|-------|---------|-----------|--------|---------------|
-| 100  | adguard  | LXC  | Debian | 1     | 512 MB  | 2 GB      | 512 MB | Yes           |
+| VMID | Name     | Type | OS     | Cores | RAM     | Root Disk | Start on Boot |
+|------|----------|------|--------|-------|---------|-----------|---------------|
+| 100  | adguard  | LXC  | Ubuntu | 1     | 512 MB  | 2 GB      | Yes           |
 
-**AdGuard Home** — Provides DNS-level ad and tracker blocking for the entire network. Deployed via [Proxmox VE community scripts](https://github.com/community-scripts/ProxmoxVE).
+**AdGuard Home** — Provides DNS-level ad and tracker blocking for the entire network.
 
-- **Storage:** Root disk on `zfs-pve-2`
-- **Network:** DHCP (IPv4) + auto (IPv6) on `vmbr0`
-- **Tags:** `adblock`, `community-script`
+- **Storage:** Root disk on `local-lvm`
+- **Network:** DHCP on `vmbr0`
+- **Port:** `3000` (web UI)
 
 ## Network
 
@@ -129,8 +132,6 @@ Bundles the *arr suite and Transmission into a single container:
 
 Both nodes use a Linux bridge (`vmbr0`) with STP disabled. Containers obtain IPs via DHCP on the same bridge.
 
-A `localnetwork` SDN is configured on each node.
-
 ### Tailscale (Remote Access)
 
 All nodes and containers are connected via [Tailscale](https://tailscale.com) mesh VPN, enabling SSH access from anywhere without exposing ports to the public internet.
@@ -141,7 +142,6 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 | pve2               | 100.114.157.124  | pve2 (host)     |
 | jellyfin-1         | 100.119.254.40   | CT 101          |
 | mediastack-1       | 100.118.179.58   | CT 102          |
-| adguard            | —                | CT 100 (not on tailnet) |
 
 MagicDNS is enabled, so nodes are reachable by hostname:
 
@@ -149,6 +149,74 @@ MagicDNS is enabled, so nodes are reachable by hostname:
 ssh root@pve1    # access pve1 from anywhere on the tailnet
 ssh root@pve2    # access pve2 from anywhere on the tailnet
 ```
+
+## Repository Structure
+
+```
+homelab/
+├── terraform/                     # Infrastructure provisioning (Proxmox LXC containers)
+│   ├── main.tf                    # Provider config (bpg/proxmox)
+│   ├── variables.tf               # Variable declarations
+│   ├── outputs.tf                 # Container IDs and hostnames
+│   ├── jellyfin.tf                # CT 101 definition
+│   ├── mediastack.tf              # CT 102 definition
+│   ├── adguard.tf                 # CT 100 definition
+│   ├── terraform.tfvars.example   # Example variables (copy to terraform.tfvars)
+│   └── modules/lxc-container/     # Reusable LXC container module
+│
+├── ansible/                       # Configuration management (software inside containers)
+│   ├── ansible.cfg
+│   ├── inventory/
+│   │   ├── hosts.yml              # Static inventory (PVE hosts + containers)
+│   │   └── group_vars/            # Per-group variables
+│   ├── playbooks/
+│   │   ├── site.yml               # Master playbook (all containers)
+│   │   ├── host-setup.yml         # ZFS datasets, subuid/subgid on PVE hosts
+│   │   ├── jellyfin.yml           # Jellyfin container config
+│   │   ├── mediastack.yml         # Mediastack container config
+│   │   └── adguard.yml            # AdGuard container config
+│   ├── roles/                     # common, jellyfin, mediastack, adguard, tailscale, zfs-media
+│   ├── vault.yml.example          # Example secrets (copy and encrypt with ansible-vault)
+│   └── vault.yml                  # Encrypted secrets (gitignored)
+│
+├── scripts/
+│   └── deploy.sh                  # Full deploy: host-setup → terraform apply → ansible site.yml
+│
+├── jellyfin.sh                    # Legacy bash setup script (reference only)
+└── architecture.drawio            # Architecture diagram
+```
+
+## Deployment
+
+### Prerequisites
+
+- [Terraform](https://www.terraform.io/) >= 1.5.0
+- [Ansible](https://docs.ansible.com/) with `community.proxmox` and `community.general` collections
+- SSH key access to both PVE hosts (via Tailscale)
+- A Proxmox API token (Datacenter → Permissions → API Tokens)
+
+### Setup
+
+```bash
+# 1. Configure Terraform variables
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# Edit terraform.tfvars with your API token and passwords
+
+# 2. Configure Ansible secrets
+cp ansible/vault.yml.example ansible/vault.yml
+ansible-vault encrypt ansible/vault.yml
+# Enter a vault password, then edit with: ansible-vault edit ansible/vault.yml
+
+# 3. Deploy everything
+./scripts/deploy.sh
+```
+
+The deploy script runs three phases:
+1. **Host setup** (Ansible) — ZFS datasets, permissions, LXC template download
+2. **Infrastructure** (Terraform) — creates containers with LXC config (idmap, cgroup, device passthrough)
+3. **Configuration** (Ansible) — installs and configures all software inside containers
+
+All phases are idempotent and safe to re-run.
 
 ## Architecture
 
