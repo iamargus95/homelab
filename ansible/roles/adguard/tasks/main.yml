@@ -1,4 +1,34 @@
 ---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Disable systemd-resolved DNSStubListener to free port 53
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/adguardhome.conf
+    content: |
+      [Resolve]
+      DNS=127.0.0.1
+      DNSStubListener=no
+    owner: root
+    group: root
+    mode: "0644"
+  register: resolved_conf
+  when: ansible_facts.services['systemd-resolved.service'] is defined
+
+- name: Symlink resolv.conf to systemd-resolved runtime config
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: yes
+  when: resolved_conf is changed
+
+- name: Restart systemd-resolved after disabling stub listener
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+  when: resolved_conf is changed
+
 - name: Install AdGuard Home dependencies
   ansible.builtin.apt:
     name:
