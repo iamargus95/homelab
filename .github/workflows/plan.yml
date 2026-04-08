@@ -41,7 +41,8 @@ jobs:
             --state homelab/terraform.tfstate \
             terraform plan -no-color -input=false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TF_BACKEND_GIT_HTTP_USERNAME: x-access-token
+          TF_BACKEND_GIT_HTTP_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
           TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
           TF_VAR_container_password: ${{ secrets.CONTAINER_PASSWORD }}
