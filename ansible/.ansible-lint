@@ -1,5 +1,6 @@
 skip_list:
-  - truthy
+  - yaml[truthy]
   - risky-shell-pipe
   - command-instead-of-module
   - name[casing]
+  - var-naming[no-role-prefix]
