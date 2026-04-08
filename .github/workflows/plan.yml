@@ -86,4 +86,4 @@ jobs:
 
       - name: Ansible Lint
         working-directory: ansible
-        run: ansible-lint playbooks/
+        run: ansible-lint -c .ansible-lint playbooks/

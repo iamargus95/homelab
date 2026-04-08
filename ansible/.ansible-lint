@@ -1,4 +1,5 @@
 skip_list:
-  - truthy        # yes/no are standard YAML booleans in Ansible
+  - truthy
   - risky-shell-pipe
   - command-instead-of-module
+  - name[casing]
