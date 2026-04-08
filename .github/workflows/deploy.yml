@@ -1,0 +1,100 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Deploy Homelab
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Network: Connect runner to Tailscale ---
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # --- SSH: Set up key for Proxmox access ---
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_ed25519
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-keyscan -H ${{ vars.PVE1_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H ${{ vars.PVE2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      # --- Install tools ---
+      - uses: opentofu/setup-opentofu@v1
+
+      - uses: plumber-cd/setup-terraform-backend-git@v1
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Install Ansible collections
+        working-directory: ansible
+        run: ansible-galaxy collection install community.general community.proxmox
+
+      - name: Write Ansible Vault password file
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /tmp/vault-pass.txt
+
+      # --- Phase 1: Host preparation (Ansible) ---
+      - name: "Phase 1: Prepare Proxmox hosts"
+        working-directory: ansible
+        run: >-
+          ansible-playbook playbooks/host-setup.yml
+          --vault-password-file /tmp/vault-pass.txt
+
+      # --- Phase 2: Infrastructure provisioning (OpenTofu) ---
+      - name: Tofu Init
+        working-directory: terraform
+        run: |
+          terraform-backend-git git \
+            --repository "https://github.com/${{ github.repository }}.git" \
+            --ref tf-state \
+            --state homelab/terraform.tfstate \
+            -- tofu init -input=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Phase 2: Provision containers"
+        working-directory: terraform
+        run: |
+          terraform-backend-git git \
+            --repository "https://github.com/${{ github.repository }}.git" \
+            --ref tf-state \
+            --state homelab/terraform.tfstate \
+            -- tofu apply -auto-approve -input=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
+          TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+          TF_VAR_container_password: ${{ secrets.CONTAINER_PASSWORD }}
+
+      # --- Phase 3: Configuration management (Ansible) ---
+      - name: "Phase 3: Configure containers"
+        working-directory: ansible
+        run: >-
+          ansible-playbook playbooks/site.yml
+          --vault-password-file /tmp/vault-pass.txt
+
+      # --- Cleanup ---
+      - name: Cleanup secrets
+        if: always()
+        run: |
+          rm -f /tmp/vault-pass.txt
+          rm -f ~/.ssh/id_ed25519

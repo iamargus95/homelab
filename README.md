@@ -1,6 +1,6 @@
 # Homelab
 
-My playground for my homelab setup, running on a two-node Proxmox VE cluster. Infrastructure is managed with **Terraform** (container lifecycle) and **Ansible** (software configuration).
+My playground for my homelab setup, running on a two-node Proxmox VE cluster. Infrastructure is managed with **OpenTofu** (container lifecycle) and **Ansible** (software configuration), deployed via **GitHub Actions**.
 
 ## Cluster Overview
 
@@ -154,6 +154,10 @@ ssh root@pve2    # access pve2 from anywhere on the tailnet
 
 ```
 homelab/
+├── .github/workflows/             # CI/CD pipelines
+│   ├── plan.yml                   # PR: OpenTofu plan + Ansible lint
+│   └── deploy.yml                 # Main: full 3-phase deploy
+│
 ├── terraform/                     # Infrastructure provisioning (Proxmox LXC containers)
 │   ├── main.tf                    # Provider config (bpg/proxmox)
 │   ├── variables.tf               # Variable declarations
@@ -180,17 +184,65 @@ homelab/
 │   └── vault.yml                  # Encrypted secrets (gitignored)
 │
 ├── scripts/
-│   └── deploy.sh                  # Full deploy: host-setup → terraform apply → ansible site.yml
+│   └── deploy.sh                  # Full deploy: host-setup → tofu apply → ansible site.yml
 │
 ├── jellyfin.sh                    # Legacy bash setup script (reference only)
 └── architecture.drawio            # Architecture diagram
 ```
 
-## Deployment
+## CI/CD
+
+Deployments are automated via GitHub Actions. OpenTofu state is stored in the `tf-state` branch of this repo using [terraform-backend-git](https://github.com/plumber-cd/terraform-backend-git).
+
+### Pipelines
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| **Plan** (`plan.yml`) | Pull request to `main` | Runs `tofu plan` and posts the output as a PR comment. Runs Ansible lint. |
+| **Deploy** (`deploy.yml`) | Push to `main` / manual | Connects to Tailscale, then runs the full 3-phase deploy. |
+
+### GitHub Setup
+
+#### Repository Variables (Settings → Secrets and variables → Actions → Variables)
+
+| Variable | Value |
+|----------|-------|
+| `PVE1_HOST` | Tailscale IP of pve1 (e.g. `100.68.132.46`) |
+| `PVE2_HOST` | Tailscale IP of pve2 (e.g. `100.114.157.124`) |
+
+#### Repository Secrets (Settings → Secrets and variables → Actions → Secrets)
+
+| Secret | Description |
+|--------|-------------|
+| `PROXMOX_ENDPOINT` | Proxmox API URL (e.g. `https://192.168.1.36:8006`) |
+| `PROXMOX_API_TOKEN` | Proxmox API token |
+| `CONTAINER_PASSWORD` | Root password for LXC containers |
+| `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID |
+| `TS_OAUTH_SECRET` | Tailscale OAuth secret |
+| `SSH_PRIVATE_KEY` | SSH private key for Proxmox hosts |
+| `ANSIBLE_VAULT_PASSWORD` | Ansible vault password |
+
+> `GITHUB_TOKEN` is provided automatically by GitHub Actions and is used by terraform-backend-git to read/write state.
+
+#### Tailscale OAuth
+
+1. Go to Tailscale admin console → Settings → OAuth clients
+2. Create an OAuth client with the `tag:ci` tag
+3. In your Tailscale ACL policy, add `"tag:ci": ["autogroup:admin"]` to `tagOwners`
+
+#### Production Environment (optional)
+
+Create a `production` environment (Settings → Environments) to add a manual approval gate before deploys.
+
+#### State Branch
+
+The `tf-state` branch is created automatically on the first deploy. It stores the OpenTofu state file and uses git branches for state locking.
+
+## Local Deployment
 
 ### Prerequisites
 
-- [Terraform](https://www.terraform.io/) >= 1.5.0
+- [OpenTofu](https://opentofu.org/) >= 1.6.0
 - [Ansible](https://docs.ansible.com/) with `community.proxmox` and `community.general` collections
 - SSH key access to both PVE hosts (via Tailscale)
 - A Proxmox API token (Datacenter → Permissions → API Tokens)
@@ -198,7 +250,7 @@ homelab/
 ### Setup
 
 ```bash
-# 1. Configure Terraform variables
+# 1. Configure OpenTofu variables
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 # Edit terraform.tfvars with your API token and passwords
 
@@ -213,7 +265,7 @@ ansible-vault encrypt ansible/vault.yml
 
 The deploy script runs three phases:
 1. **Host setup** (Ansible) — ZFS datasets, permissions, LXC template download
-2. **Infrastructure** (Terraform) — creates containers with LXC config (idmap, cgroup, device passthrough)
+2. **Infrastructure** (OpenTofu) — creates containers with LXC config (idmap, cgroup, device passthrough)
 3. **Configuration** (Ansible) — installs and configures all software inside containers
 
 All phases are idempotent and safe to re-run.
