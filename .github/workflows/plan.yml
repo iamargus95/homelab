@@ -20,6 +20,9 @@ jobs:
 
       - uses: opentofu/setup-opentofu@v1
 
+      - name: Symlink tofu as terraform
+        run: ln -sf "$(which tofu)" /usr/local/bin/terraform
+
       - uses: plumber-cd/setup-terraform-backend-git@v1
 
       - name: Tofu Init + Plan
@@ -30,13 +33,13 @@ jobs:
             --repository "https://github.com/${{ github.repository }}.git" \
             --ref tf-state \
             --state homelab/terraform.tfstate \
-            -- tofu init -input=false
+            terraform init -input=false
 
           terraform-backend-git git \
             --repository "https://github.com/${{ github.repository }}.git" \
             --ref tf-state \
             --state homelab/terraform.tfstate \
-            -- tofu plan -no-color -input=false
+            terraform plan -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
