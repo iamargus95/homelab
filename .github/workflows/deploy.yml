@@ -88,8 +88,8 @@ jobs:
             --state homelab/terraform.tfstate \
             terraform init -input=false
         env:
-          TF_BACKEND_GIT_HTTP_USERNAME: x-access-token
-          TF_BACKEND_GIT_HTTP_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GIT_USERNAME: x-access-token
+          GIT_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Phase 2: Provision containers"
         working-directory: terraform
@@ -100,8 +100,8 @@ jobs:
             --state homelab/terraform.tfstate \
             terraform apply -auto-approve -input=false
         env:
-          TF_BACKEND_GIT_HTTP_USERNAME: x-access-token
-          TF_BACKEND_GIT_HTTP_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GIT_USERNAME: x-access-token
+          GIT_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
           TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
           TF_VAR_container_password: ${{ secrets.CONTAINER_PASSWORD }}
