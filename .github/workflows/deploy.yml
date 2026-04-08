@@ -30,12 +30,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null" > ~/.ssh/config
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_ed25519
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
-          ssh-keyscan -H ${{ vars.PVE1_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          ssh-keyscan -H ${{ vars.PVE2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
       # --- Install tools ---
       - uses: opentofu/setup-opentofu@v1
