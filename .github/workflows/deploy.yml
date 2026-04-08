@@ -24,16 +24,16 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - name: Verify Tailscale connectivity
+      - name: Wait for Tailscale routes
         run: |
-          echo "=== Tailscale status ==="
-          tailscale status
-          echo ""
-          echo "=== Pinging Proxmox hosts ==="
           for host in ${{ vars.PVE1_HOST }} ${{ vars.PVE2_HOST }}; do
-            echo "Trying $host..."
-            tailscale ping -c 1 --timeout 10s "$host" || echo "  tailscale ping failed for $host"
-            echo ""
+            for i in $(seq 1 10); do
+              if tailscale ping -c 1 --timeout 5s "$host" >/dev/null 2>&1; then
+                echo "$host reachable"
+                break
+              fi
+              sleep 2
+            done
           done
 
       # --- SSH: Set up key for Proxmox access ---
