@@ -1,0 +1,13 @@
+[Unit]
+Description={{ item.name | capitalize }}
+After=network.target
+
+[Service]
+User={{ media_user }}
+Group={{ media_group }}
+WorkingDirectory=/opt/{{ item.name }}
+ExecStart=/opt/{{ item.name }}/{{ item.name | capitalize }} -nobrowser -data=/var/lib/{{ item.name }}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+# Shared variables — secrets referenced from vault
+container_password: "{{ vault_container_password }}"
+ts_auth_key: "{{ vault_ts_auth_key }}"
+
+# Media user/group (UID/GID 1000 inside containers, maps to 101000 on host)
+media_user: mediauser
+media_group: mediagroup
+media_uid: 1000
+media_gid: 1000

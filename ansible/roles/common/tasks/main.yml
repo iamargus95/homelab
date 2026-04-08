@@ -1,0 +1,45 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - software-properties-common
+    state: present
+
+- name: Remove default user occupying UID {{ media_uid }}
+  ansible.builtin.shell: |
+    EXISTING=$(getent passwd {{ media_uid }} | cut -d: -f1)
+    if [ -n "$EXISTING" ] && [ "$EXISTING" != "{{ media_user }}" ]; then
+      userdel -r "$EXISTING" 2>/dev/null || true
+    fi
+  changed_when: false
+
+- name: Remove default group occupying GID {{ media_gid }}
+  ansible.builtin.shell: |
+    EXISTING=$(getent group {{ media_gid }} | cut -d: -f1)
+    if [ -n "$EXISTING" ] && [ "$EXISTING" != "{{ media_group }}" ]; then
+      groupdel "$EXISTING" 2>/dev/null || true
+    fi
+  changed_when: false
+
+- name: Create media group
+  ansible.builtin.group:
+    name: "{{ media_group }}"
+    gid: "{{ media_gid }}"
+    state: present
+
+- name: Create media user
+  ansible.builtin.user:
+    name: "{{ media_user }}"
+    uid: "{{ media_uid }}"
+    group: "{{ media_group }}"
+    shell: /bin/false
+    create_home: yes
+    state: present
+  when: create_media_user | default(true)

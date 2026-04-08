@@ -1,0 +1,21 @@
+media_data_mount: /data
+
+# App versions
+flaresolverr_version: "v3.3.21"
+
+# Transmission
+transmission_user: "{{ vault_transmission_user }}"
+transmission_pass: "{{ vault_transmission_pass }}"
+transmission_download_dir: /data/downloads
+
+# Arr apps to install
+arr_apps:
+  - name: radarr
+    url: "https://radarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64"
+    port: 7878
+  - name: sonarr
+    url: "https://services.sonarr.tv/v1/download/main/latest?version=4&os=linux&arch=x64"
+    port: 8989
+  - name: prowlarr
+    url: "https://prowlarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64"
+    port: 9696

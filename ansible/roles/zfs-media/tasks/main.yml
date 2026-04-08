@@ -1,0 +1,31 @@
+---
+- name: Create ZFS media datasets
+  ansible.builtin.command: "zfs create -p {{ zfs_pool }}/media/{{ item }}"
+  loop:
+    - movies
+    - tv
+    - downloads
+    - videos
+  register: zfs_result
+  changed_when: zfs_result.rc == 0
+  failed_when: zfs_result.rc != 0 and 'dataset already exists' not in zfs_result.stderr
+
+- name: Set media directory ownership
+  ansible.builtin.file:
+    path: "{{ media_dir }}"
+    owner: "101000"
+    group: "101000"
+    mode: "0775"
+    recurse: yes
+
+- name: Ensure subuid mapping for media user
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    line: "root:101000:1"
+    state: present
+
+- name: Ensure subgid mapping for media group
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    line: "root:101000:1"
+    state: present

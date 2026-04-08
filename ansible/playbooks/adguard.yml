@@ -1,0 +1,12 @@
+---
+- name: Configure AdGuard container
+  hosts: adguard
+  become: yes
+  vars_files:
+    - ../vault.yml
+  vars:
+    create_media_user: false
+  roles:
+    - common
+    - adguard
+    - tailscale

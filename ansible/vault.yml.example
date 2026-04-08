@@ -1,0 +1,7 @@
+# Copy this file to vault.yml and encrypt with: ansible-vault encrypt vault.yml
+# Decrypt to edit: ansible-vault edit vault.yml
+
+vault_container_password: "changeme"
+vault_ts_auth_key: "tskey-auth-xxxxx"
+vault_transmission_user: "admin"
+vault_transmission_pass: "changeme"

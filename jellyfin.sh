@@ -6,14 +6,41 @@
 source ./env.local.secrets.sh
 set -e
 
-echo "==> [1/6] CLEANING UP EXISTING DEPLOYMENTS..."
-for ID in $JELLYFIN_ID $MEDIA_ID; do
+# --- Helper Functions ---
+wait_for_container() {
+  local ID=$1
+  local MAX_WAIT=30
+  local WAITED=0
+  echo "    Waiting for CT$ID to be ready..."
+  while [ $WAITED -lt $MAX_WAIT ]; do
+    if pct exec $ID -- systemctl is-system-running >/dev/null 2>&1; then
+      echo "    CT$ID is ready."
+      return 0
+    fi
+    sleep 2
+    WAITED=$((WAITED + 2))
+  done
+  echo "    WARNING: CT$ID may not be fully ready after ${MAX_WAIT}s, continuing anyway..."
+}
+
+ensure_container_destroyed() {
+  local ID=$1
   if pct status $ID >/dev/null 2>&1; then
     echo "    Stopping and destroying Container $ID..."
-    pct stop $ID >/dev/null 2>&1 || true
-    pct destroy $ID >/dev/null 2>&1 || true
+    pct stop $ID 2>/dev/null || true
+    # Wait for stop to complete
+    local WAITED=0
+    while [ $WAITED -lt 15 ] && pct status $ID 2>/dev/null | grep -q running; do
+      sleep 1
+      WAITED=$((WAITED + 1))
+    done
+    pct destroy $ID --force 2>/dev/null || true
   fi
-done
+}
+
+echo "==> [1/6] CLEANING UP EXISTING DEPLOYMENTS..."
+ensure_container_destroyed $JELLYFIN_ID
+ensure_container_destroyed $MEDIA_ID
 
 echo "==> [2/6] PREPARING HOST & ZFS..."
 for dir in movies tv downloads videos; do
@@ -55,14 +82,20 @@ EOF
 
 pct set $JELLYFIN_ID --mp0 $MEDIA_DIR,mp=/media
 pct start $JELLYFIN_ID
-sleep 8
+wait_for_container $JELLYFIN_ID
 
 pct exec $JELLYFIN_ID -- bash -c "
+  # Evict any default user/group occupying UID/GID 1000
+  EXISTING_USER=\$(getent passwd 1000 | cut -d: -f1)
+  EXISTING_GROUP=\$(getent group 1000 | cut -d: -f1)
+  [ -n \"\$EXISTING_USER\" ] && userdel -r \"\$EXISTING_USER\" 2>/dev/null || true
+  [ -n \"\$EXISTING_GROUP\" ] && [ \"\$EXISTING_GROUP\" != 'mediagroup' ] && groupdel \"\$EXISTING_GROUP\" 2>/dev/null || true
+
+  groupadd -g 1000 mediagroup 2>/dev/null || true
   apt-get update && apt-get install -y curl gnupg
   curl -fsSL https://repo.jellyfin.org/ubuntu/jellyfin_team.gpg.key | gpg --dearmor -o /usr/share/keyrings/jellyfin.gpg
   echo 'deb [signed-by=/usr/share/keyrings/jellyfin.gpg] https://repo.jellyfin.org/ubuntu jammy main' > /etc/apt/sources.list.d/jellyfin.list
   apt-get update && apt-get install -y jellyfin
-  groupadd -g 1000 mediagroup 2>/dev/null || true
   usermod -aG mediagroup jellyfin
   curl -fsSL https://tailscale.com/install.sh | sh
   [ -n '$TS_AUTH_KEY' ] && tailscale up --authkey $TS_AUTH_KEY --accept-routes || true
@@ -86,13 +119,25 @@ EOF
 
 pct set $MEDIA_ID --mp0 $MEDIA_DIR,mp=/data
 pct start $MEDIA_ID
-sleep 8
+wait_for_container $MEDIA_ID
 
 pct exec $MEDIA_ID -- bash -c "
-  apt-get update && apt-get install -y curl software-properties-common sqlite3 xvfb libxi6 libgconf-2-4 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2
+  # Evict any default user/group occupying UID/GID 1000
+  EXISTING_USER=\$(getent passwd 1000 | cut -d: -f1)
+  EXISTING_GROUP=\$(getent group 1000 | cut -d: -f1)
+  [ -n \"\$EXISTING_USER\" ] && userdel -r \"\$EXISTING_USER\" 2>/dev/null || true
+  [ -n \"\$EXISTING_GROUP\" ] && [ \"\$EXISTING_GROUP\" != 'mediagroup' ] && groupdel \"\$EXISTING_GROUP\" 2>/dev/null || true
 
   groupadd -g 1000 mediagroup 2>/dev/null || true
   useradd -u 1000 -g 1000 -m -s /bin/false mediauser 2>/dev/null || true
+
+  # Verify mediauser was created successfully
+  if ! id mediauser >/dev/null 2>&1; then
+    echo 'FATAL: Failed to create mediauser. Aborting.' >&2
+    exit 1
+  fi
+
+  apt-get update && apt-get install -y curl software-properties-common sqlite3 xvfb libxi6 libgconf-2-4 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2
 
   # FlareSolverr - Force Flattened Install
   mkdir -p /opt/flaresolverr/temp
@@ -122,7 +167,23 @@ pct exec $MEDIA_ID -- bash -c "
       prowlarr) bin='/opt/prowlarr/Prowlarr -nobrowser -data=/var/lib/prowlarr'; env='' ;;
     esac
     mkdir -p /var/lib/\$app && chown mediauser:mediagroup /var/lib/\$app
-    echo -e \"[Unit]\nDescription=\$app\nAfter=network.target\n[Service]\nUser=mediauser\nGroup=mediagroup\nWorkingDirectory=/opt/\$app\n\$env\nExecStart=\$bin\nRestart=always\n[Install]\nWantedBy=multi-user.target\" > /etc/systemd/system/\$app.service
+    cat > /etc/systemd/system/\$app.service <<SVCEOF
+[Unit]
+Description=\$app
+After=network.target
+
+[Service]
+User=mediauser
+Group=mediagroup
+WorkingDirectory=/opt/\$app
+\$env
+ExecStart=\$bin
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+    systemctl daemon-reload
     systemctl enable \$app && systemctl start \$app
   done
 
@@ -131,6 +192,17 @@ pct exec $MEDIA_ID -- bash -c "
   systemctl stop transmission-daemon
   mkdir -p /etc/systemd/system/transmission-daemon.service.d
   echo -e '[Service]\nUser=mediauser\nGroup=mediagroup' > /etc/systemd/system/transmission-daemon.service.d/override.conf
+
+  # Configure Transmission credentials
+  SETTINGS_FILE=/etc/transmission-daemon/settings.json
+  if [ -f \$SETTINGS_FILE ]; then
+    sed -i 's/\"rpc-authentication-required\": false/\"rpc-authentication-required\": true/' \$SETTINGS_FILE
+    sed -i 's|\"rpc-username\": \".*\"|\"rpc-username\": \"$TRANS_USER\"|' \$SETTINGS_FILE
+    sed -i 's|\"rpc-password\": \".*\"|\"rpc-password\": \"$TRANS_PASS\"|' \$SETTINGS_FILE
+    sed -i 's|\"rpc-whitelist-enabled\": true|\"rpc-whitelist-enabled\": false|' \$SETTINGS_FILE
+    sed -i 's|\"download-dir\": \".*\"|\"download-dir\": \"/data/downloads\"|' \$SETTINGS_FILE
+  fi
+
   systemctl daemon-reload && systemctl start transmission-daemon
 
   curl -fsSL https://tailscale.com/install.sh | sh

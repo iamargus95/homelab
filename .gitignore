@@ -12,6 +12,18 @@
 *.env
 env.local.secrets.sh
 
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Ansible
+ansible/vault.yml
+*.retry
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
