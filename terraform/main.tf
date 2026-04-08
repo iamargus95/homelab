@@ -15,6 +15,17 @@ provider "proxmox" {
   insecure  = true
 
   ssh {
-    agent = true
+    agent    = true
+    username = "root"
+
+    node {
+      name    = "pve1"
+      address = var.pve1_ssh_host
+    }
+
+    node {
+      name    = "pve2"
+      address = var.pve2_ssh_host
+    }
   }
 }
