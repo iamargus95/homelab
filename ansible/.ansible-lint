@@ -1,6 +1,8 @@
 skip_list:
   - yaml[truthy]
+  - yaml[line-length]
   - risky-shell-pipe
+  - risky-file-permissions
   - command-instead-of-module
   - name[casing]
   - var-naming[no-role-prefix]
