@@ -22,7 +22,8 @@ jobs:
 
       - uses: plumber-cd/setup-terraform-backend-git@v1
 
-      - name: Tofu Init
+      - name: Tofu Init + Plan
+        id: plan
         working-directory: terraform
         run: |
           terraform-backend-git git \
@@ -30,17 +31,7 @@ jobs:
             --ref tf-state \
             --state homelab/terraform.tfstate \
             -- tofu init -input=false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tofu Validate
-        working-directory: terraform
-        run: tofu validate
-
-      - name: Tofu Plan
-        id: plan
-        working-directory: terraform
-        run: |
           terraform-backend-git git \
             --repository "https://github.com/${{ github.repository }}.git" \
             --ref tf-state \
