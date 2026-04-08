@@ -9,7 +9,7 @@ echo " Homelab Deploy"
 echo "======================================"
 
 # Pre-flight: ensure required tools exist
-for cmd in terraform ansible-playbook; do
+for cmd in tofu ansible-playbook; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "ERROR: $cmd is not installed." >&2
     exit 1
@@ -29,10 +29,10 @@ ansible-playbook playbooks/host-setup.yml "$@"
 
 # Phase 2: Infrastructure provisioning
 echo ""
-echo "==> [2/3] Provisioning containers (Terraform)..."
+echo "==> [2/3] Provisioning containers (OpenTofu)..."
 cd "$ROOT_DIR/terraform"
-terraform init -input=false
-terraform apply -auto-approve
+tofu init -input=false
+tofu apply -auto-approve
 
 # Phase 3: Configuration management
 echo ""
@@ -54,4 +54,4 @@ echo "   Prowlarr:     http://<mediastack-ip>:9696"
 echo "   FlareSolverr: http://<mediastack-ip>:8191"
 echo "   AdGuard:      http://<adguard-ip>:3000"
 echo ""
-echo " Tip: Use 'cd terraform && terraform output' to see container details."
+echo " Tip: Use 'cd terraform && tofu output' to see container details."
