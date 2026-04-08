@@ -1,0 +1,9 @@
+---
+- name: Configure all containers
+  ansible.builtin.import_playbook: jellyfin.yml
+
+- name: Configure mediastack
+  ansible.builtin.import_playbook: mediastack.yml
+
+- name: Configure adguard
+  ansible.builtin.import_playbook: adguard.yml

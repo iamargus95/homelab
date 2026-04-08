@@ -1,0 +1,19 @@
+---
+- name: Prepare Proxmox hosts
+  hosts: pve_hosts
+  become: yes
+  tasks:
+    - name: Download LXC template
+      ansible.builtin.shell: |
+        pveam update
+        TEMPLATE=$(pveam available --section system | grep "ubuntu-22.04-standard" | awk '{print $2}' | head -1)
+        pveam download local "$TEMPLATE" 2>&1 || true
+      register: template_result
+      changed_when: "'downloading' in (template_result.stdout | lower)"
+      failed_when: false
+
+- name: Prepare ZFS media storage on pve1
+  hosts: pve1
+  become: yes
+  roles:
+    - zfs-media
