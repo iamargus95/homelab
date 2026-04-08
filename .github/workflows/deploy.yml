@@ -60,15 +60,20 @@ jobs:
         working-directory: ansible
         run: ansible-galaxy collection install community.general community.proxmox
 
-      - name: Write Ansible Vault password file
-        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /tmp/vault-pass.txt
+      - name: Write Ansible Vault file
+        working-directory: ansible
+        run: |
+          printf '%s\n' \
+            "vault_container_password: \"${{ secrets.CONTAINER_PASSWORD }}\"" \
+            "vault_ts_auth_key: \"${{ secrets.TS_AUTH_KEY }}\"" \
+            "vault_transmission_user: \"${{ secrets.TRANSMISSION_USER }}\"" \
+            "vault_transmission_pass: \"${{ secrets.TRANSMISSION_PASS }}\"" \
+            > vault.yml
 
       # --- Phase 1: Host preparation (Ansible) ---
       - name: "Phase 1: Prepare Proxmox hosts"
         working-directory: ansible
-        run: >-
-          ansible-playbook playbooks/host-setup.yml
-          --vault-password-file /tmp/vault-pass.txt
+        run: ansible-playbook playbooks/host-setup.yml
 
       # --- Phase 2: Infrastructure provisioning (OpenTofu) ---
       - name: Tofu Init
@@ -99,13 +104,11 @@ jobs:
       # --- Phase 3: Configuration management (Ansible) ---
       - name: "Phase 3: Configure containers"
         working-directory: ansible
-        run: >-
-          ansible-playbook playbooks/site.yml
-          --vault-password-file /tmp/vault-pass.txt
+        run: ansible-playbook playbooks/site.yml
 
       # --- Cleanup ---
       - name: Cleanup secrets
         if: always()
         run: |
-          rm -f /tmp/vault-pass.txt
+          rm -f ansible/vault.yml
           rm -f ~/.ssh/id_ed25519

@@ -219,8 +219,10 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `CONTAINER_PASSWORD` | Root password for LXC containers |
 | `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID |
 | `TS_OAUTH_SECRET` | Tailscale OAuth secret |
+| `TS_AUTH_KEY` | Tailscale auth key for container enrollment |
 | `SSH_PRIVATE_KEY` | SSH private key for Proxmox hosts |
-| `ANSIBLE_VAULT_PASSWORD` | Ansible vault password |
+| `TRANSMISSION_USER` | Transmission RPC username |
+| `TRANSMISSION_PASS` | Transmission RPC password |
 
 > `GITHUB_TOKEN` is provided automatically by GitHub Actions and is used by terraform-backend-git to read/write state.
 
