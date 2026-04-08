@@ -1,5 +1,5 @@
 module "adguard" {
-  source = "../modules/lxc-container"
+  source = "./modules/lxc-container"
 
   vmid         = 100
   hostname     = "adguard"

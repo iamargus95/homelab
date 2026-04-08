@@ -1,5 +1,5 @@
 module "mediastack" {
-  source = "../modules/lxc-container"
+  source = "./modules/lxc-container"
 
   vmid         = 102
   hostname     = "mediastack"
@@ -18,7 +18,6 @@ module "mediastack" {
     {
       host_path      = "/zfs-pve-1/media"
       container_path = "/data"
-      slot           = 0
     }
   ]
 

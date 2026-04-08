@@ -24,6 +24,10 @@ resource "proxmox_virtual_environment_container" "this" {
         address = "dhcp"
       }
     }
+
+    user_account {
+      password = var.password
+    }
   }
 
   operating_system {
@@ -54,7 +58,10 @@ resource "proxmox_virtual_environment_container" "this" {
   }
 
   unprivileged = var.unprivileged
-  start_on_boot = var.onboot
+
+  startup {
+    order = 1
+  }
 
   # Start stopped so we can inject raw LXC config before first boot
   started = length(var.extra_lxc_config) > 0 ? false : true
@@ -64,7 +71,6 @@ resource "proxmox_virtual_environment_container" "this" {
     content {
       volume = mount_point.value.host_path
       path   = mount_point.value.container_path
-      shared = true
     }
   }
 
@@ -93,14 +99,14 @@ resource "terraform_data" "lxc_config_injection" {
       user = "root"
     }
 
-    inline = [
+    inline = concat(
       # Remove any previously injected lines (idempotent re-runs)
-      "sed -i '/^lxc\\./d' /etc/pve/lxc/${var.vmid}.conf",
-      # Append new config
-      join("\n", [for line in var.extra_lxc_config : "echo '${line}' >> /etc/pve/lxc/${var.vmid}.conf"]),
+      ["sed -i '/^lxc\\./d' /etc/pve/lxc/${var.vmid}.conf"],
+      # Append each config line
+      [for line in var.extra_lxc_config : "echo '${line}' >> /etc/pve/lxc/${var.vmid}.conf"],
       # Start the container
-      "pct start ${var.vmid} || true",
-    ]
+      ["pct start ${var.vmid} || true"],
+    )
   }
 
   depends_on = [proxmox_virtual_environment_container.this]

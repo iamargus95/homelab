@@ -48,7 +48,7 @@ variable "bridge" {
 }
 
 variable "dns_servers" {
-  description = "DNS servers (space-separated)"
+  description = "DNS servers"
   type        = list(string)
   default     = ["1.1.1.1", "8.8.8.8"]
 }
@@ -71,18 +71,11 @@ variable "nesting" {
   default     = true
 }
 
-variable "onboot" {
-  description = "Start container on boot"
-  type        = bool
-  default     = true
-}
-
 variable "mountpoints" {
   description = "Bind mount points from host to container"
   type = list(object({
     host_path      = string
     container_path = string
-    slot           = number
   }))
   default = []
 }

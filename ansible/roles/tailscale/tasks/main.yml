@@ -5,8 +5,8 @@
     creates: /usr/bin/tailscale
 
 - name: Authenticate Tailscale
-  ansible.builtin.command: tailscale up --authkey {{ ts_auth_key }} --accept-routes
-  when: ts_auth_key | default('') | length > 0
+  ansible.builtin.command: "tailscale up --authkey {{ ts_auth_key }} --accept-routes"
+  when: ts_auth_key is defined and ts_auth_key | length > 0
   register: ts_result
-  changed_when: "'Success' in ts_result.stdout or ts_result.rc == 0"
+  changed_when: ts_result.rc == 0
   failed_when: false

@@ -8,11 +8,24 @@ echo "======================================"
 echo " Homelab Deploy"
 echo "======================================"
 
+# Pre-flight: ensure required tools exist
+for cmd in terraform ansible-playbook; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "ERROR: $cmd is not installed." >&2
+    exit 1
+  fi
+done
+
+# Pre-flight: ensure required Ansible collections are installed
+echo ""
+echo "==> [0/3] Checking Ansible collections..."
+ansible-galaxy collection install community.general --upgrade >/dev/null 2>&1
+
 # Phase 1: Host preparation
 echo ""
 echo "==> [1/3] Preparing Proxmox hosts (Ansible)..."
 cd "$ROOT_DIR/ansible"
-ansible-playbook playbooks/host-setup.yml --ask-vault-pass "$@"
+ansible-playbook playbooks/host-setup.yml "$@"
 
 # Phase 2: Infrastructure provisioning
 echo ""
@@ -41,4 +54,4 @@ echo "   Prowlarr:     http://<mediastack-ip>:9696"
 echo "   FlareSolverr: http://<mediastack-ip>:8191"
 echo "   AdGuard:      http://<adguard-ip>:3000"
 echo ""
-echo " Tip: Use 'terraform output' to see container details."
+echo " Tip: Use 'cd terraform && terraform output' to see container details."

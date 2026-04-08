@@ -1,5 +1,5 @@
 module "jellyfin" {
-  source = "../modules/lxc-container"
+  source = "./modules/lxc-container"
 
   vmid         = 101
   hostname     = "jellyfin"
@@ -18,7 +18,6 @@ module "jellyfin" {
     {
       host_path      = "/zfs-pve-1/media"
       container_path = "/media"
-      slot           = 0
     }
   ]
 
