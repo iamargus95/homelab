@@ -78,6 +78,11 @@ resource "proxmox_virtual_environment_container" "this" {
     ignore_changes = [
       # Password is only set on creation
       initialization[0].user_account,
+      # idmap and started are managed by the lxc_config_injection provisioner
+      # (SSH), not by the provider. The provider reads them back on refresh,
+      # causing perpetual drift that the Proxmox API rejects (HTTP 500).
+      idmap,
+      started,
     ]
   }
 }
