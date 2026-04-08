@@ -54,7 +54,7 @@ jobs:
       - uses: plumber-cd/setup-terraform-backend-git@v1
 
       - name: Install Ansible
-        run: pip install ansible
+        run: pip install ansible paramiko
 
       - name: Install Ansible collections
         working-directory: ansible
