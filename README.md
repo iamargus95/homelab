@@ -136,12 +136,12 @@ Both nodes use a Linux bridge (`vmbr0`) with STP disabled. Containers obtain IPs
 
 All nodes and containers are connected via [Tailscale](https://tailscale.com) mesh VPN, enabling SSH access from anywhere without exposing ports to the public internet.
 
-| Tailscale Node     | Tailscale IP     | Runs On         |
-|--------------------|------------------|-----------------|
-| pve1               | 100.68.132.46    | pve1 (host)     |
-| pve2               | 100.114.157.124  | pve2 (host)     |
-| jellyfin-1         | 100.119.254.40   | CT 101          |
-| mediastack-1       | 100.118.179.58   | CT 102          |
+| Tailscale Node     | Tailscale IP              | Runs On         |
+|--------------------|---------------------------|-----------------|
+| pve1               | `<PVE1_TAILSCALE_IP>`     | pve1 (host)     |
+| pve2               | `<PVE2_TAILSCALE_IP>`     | pve2 (host)     |
+| jellyfin-1         | `<JELLYFIN_TAILSCALE_IP>` | CT 101          |
+| mediastack-1       | `<MEDIA_TAILSCALE_IP>`    | CT 102          |
 
 MagicDNS is enabled, so nodes are reachable by hostname:
 
@@ -207,8 +207,8 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 
 | Variable | Value |
 |----------|-------|
-| `PVE1_HOST` | Tailscale IP of pve1 (e.g. `100.68.132.46`) |
-| `PVE2_HOST` | Tailscale IP of pve2 (e.g. `100.114.157.124`) |
+| `PVE1_HOST` | Tailscale IP of pve1 |
+| `PVE2_HOST` | Tailscale IP of pve2 |
 
 #### Repository Secrets (Settings → Secrets and variables → Actions → Secrets)
 

@@ -5,8 +5,8 @@ proxmox_api_token  = "root@pam!terraform=00000000-0000-0000-0000-000000000000"
 container_password = "changeme"
 
 # Tailscale IPs for SSH access to PVE hosts
-pve1_ssh_host = "100.68.132.46"
-pve2_ssh_host = "100.114.157.124"
+pve1_ssh_host = "<YOUR_PVE1_TAILSCALE_IP>"
+pve2_ssh_host = "<YOUR_PVE2_TAILSCALE_IP>"
 
 # LXC template (download via: pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst)
 template_id = "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"

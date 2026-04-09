@@ -1,0 +1,176 @@
+#!/bin/bash
+# scripts/setup-local.sh
+# Generates local config files from .example templates.
+# Fetches Tailscale IPs via SSH to PVE nodes on the LAN; prompts for secrets.
+#
+# Usage: ./scripts/setup-local.sh
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$ROOT_DIR"
+
+# --- PVE node LAN IPs (used to bootstrap SSH before Tailscale IPs are known) ---
+PVE1_LAN="192.168.1.36"
+PVE2_LAN="192.168.1.41"
+
+SSH_OPTS="-o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes"
+
+# --- Helpers ---
+info()  { printf '  \033[0;32m+\033[0m %s\n' "$*"; }
+warn()  { printf '  \033[1;33m!\033[0m %s\n' "$*"; }
+error() { printf '  \033[0;31mx\033[0m %s\n' "$*" >&2; exit 1; }
+header() { printf '\n\033[1m%s\033[0m\n' "$*"; }
+
+ask() {
+  local prompt="$1" var="$2" default="${3:-}"
+  local hint; hint="${default:+ [$default]}"
+  read -rp "  ${prompt}${hint}: " val
+  printf -v "$var" '%s' "${val:-$default}"
+}
+
+ask_secret() {
+  local prompt="$1" var="$2"
+  read -rsp "  ${prompt}: " val; echo
+  printf -v "$var" '%s' "$val"
+}
+
+# Returns 0 (proceed) or 1 (skip) for a given output file
+check_overwrite() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    read -rp "  $(basename "$file") already exists — overwrite? [y/N] " yn
+    [[ "${yn:-n}" =~ ^[Yy]$ ]] || return 1
+  fi
+  return 0
+}
+
+# ============================================================
+header "=== Step 1: Fetch Tailscale IPs via SSH ==="
+# ============================================================
+
+info "Connecting to pve1 (${PVE1_LAN})..."
+PVE1_TS=$(ssh $SSH_OPTS "root@${PVE1_LAN}" "tailscale ip -4" 2>/dev/null | head -1) \
+  || error "Could not SSH to pve1 (${PVE1_LAN}). Is it reachable on the LAN?"
+
+info "Connecting to pve2 (${PVE2_LAN})..."
+PVE2_TS=$(ssh $SSH_OPTS "root@${PVE2_LAN}" "tailscale ip -4" 2>/dev/null | head -1) \
+  || error "Could not SSH to pve2 (${PVE2_LAN}). Is it reachable on the LAN?"
+
+info "pve1 Tailscale IP: ${PVE1_TS}"
+info "pve2 Tailscale IP: ${PVE2_TS}"
+
+# ============================================================
+header "=== Step 2: Secrets (cannot be auto-fetched) ==="
+# ============================================================
+
+warn "Proxmox API tokens are shown only once at creation time."
+warn "Find yours at: Datacenter → Permissions → API Tokens"
+echo
+ask_secret "Proxmox API token (root@pam!terraform=...)" PROXMOX_TOKEN
+ask_secret "Container root password" CONTAINER_PASS
+echo
+ask "Transmission username" TRANS_USER "admin"
+ask_secret "Transmission password" TRANS_PASS
+echo
+warn "Tailscale auth key: generate one at https://login.tailscale.com/admin/settings/keys"
+warn "Leave blank to skip (you'll need to run 'tailscale up' manually on each container)"
+ask "Tailscale auth key (tskey-auth-...)" TS_AUTH_KEY ""
+
+# ============================================================
+header "=== Step 3: Generate config files ==="
+# ============================================================
+
+# --- ansible/inventory/hosts.yml ---
+if check_overwrite ansible/inventory/hosts.yml; then
+  sed \
+    -e "s|<PVE1_TAILSCALE_IP>|${PVE1_TS}|g" \
+    -e "s|<PVE2_TAILSCALE_IP>|${PVE2_TS}|g" \
+    ansible/inventory/hosts.yml.example > ansible/inventory/hosts.yml
+  chmod 600 ansible/inventory/hosts.yml
+  info "Generated ansible/inventory/hosts.yml"
+fi
+
+# --- terraform/terraform.tfvars ---
+if check_overwrite terraform/terraform.tfvars; then
+  cat > terraform/terraform.tfvars <<EOF
+proxmox_endpoint   = "https://${PVE1_LAN}:8006"
+proxmox_api_token  = "${PROXMOX_TOKEN}"
+container_password = "${CONTAINER_PASS}"
+
+# Tailscale IPs for SSH access to PVE hosts
+pve1_ssh_host = "${PVE1_TS}"
+pve2_ssh_host = "${PVE2_TS}"
+
+# LXC template (download via: pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst)
+template_id = "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+EOF
+  chmod 600 terraform/terraform.tfvars
+  info "Generated terraform/terraform.tfvars"
+fi
+
+# --- ansible/vault.yml ---
+if check_overwrite ansible/vault.yml; then
+  cat > ansible/vault.yml <<EOF
+vault_container_password: "${CONTAINER_PASS}"
+vault_ts_auth_key: "${TS_AUTH_KEY}"
+vault_transmission_user: "${TRANS_USER}"
+vault_transmission_pass: "${TRANS_PASS}"
+EOF
+  chmod 600 ansible/vault.yml
+
+  if command -v ansible-vault &>/dev/null; then
+    read -rp "  Encrypt ansible/vault.yml with ansible-vault now? [Y/n] " yn
+    if [[ "${yn:-y}" =~ ^[Yy]$ ]]; then
+      ansible-vault encrypt ansible/vault.yml
+      info "ansible/vault.yml encrypted"
+    else
+      warn "vault.yml left unencrypted — encrypt it before deploying: ansible-vault encrypt ansible/vault.yml"
+    fi
+  else
+    warn "ansible-vault not found — encrypt vault.yml before deploying"
+    info "Generated ansible/vault.yml (unencrypted)"
+  fi
+fi
+
+# --- env.local.secrets.sh ---
+if check_overwrite env.local.secrets.sh; then
+  cat > env.local.secrets.sh <<EOF
+#!/bin/bash
+# Generated by scripts/setup-local.sh — do not commit
+
+# --- Infrastructure ---
+STORAGE="zfs-pve-1"
+TEMPLATE_STORAGE="local"
+BRIDGE="vmbr0"
+PASSWORD="${CONTAINER_PASS}"
+
+# --- IDs ---
+JELLYFIN_ID=101
+MEDIA_ID=102
+
+# --- Network ---
+DNS_SERVERS="1.1.1.1 8.8.8.8"
+
+# --- Storage Paths ---
+ZFS_POOL="zfs-pve-1"
+MEDIA_DIR="/zfs-pve-1/media"
+
+# --- App Credentials ---
+TRANS_USER="${TRANS_USER}"
+TRANS_PASS="${TRANS_PASS}"
+
+# --- Versioning ---
+FLARE_VER="v3.3.21"
+
+# --- Tailscale ---
+TS_AUTH_KEY="${TS_AUTH_KEY}"
+EOF
+  chmod 600 env.local.secrets.sh
+  info "Generated env.local.secrets.sh"
+fi
+
+# ============================================================
+printf '\n'
+info "All done. Run ./scripts/deploy.sh to deploy."
