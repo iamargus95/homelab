@@ -1,9 +1,14 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      pve1_host:
+        description: 'Tailscale IP of pve1'
+        required: true
+      pve2_host:
+        description: 'Tailscale IP of pve2'
+        required: true
 
 permissions:
   contents: write
@@ -26,7 +31,7 @@ jobs:
 
       - name: Wait for Tailscale routes
         run: |
-          for host in ${{ vars.PVE1_HOST }} ${{ vars.PVE2_HOST }}; do
+          for host in ${{ inputs.pve1_host }} ${{ inputs.pve2_host }}; do
             for i in $(seq 1 10); do
               if tailscale ping -c 1 --timeout 5s "$host" >/dev/null 2>&1; then
                 echo "$host reachable"
@@ -73,6 +78,14 @@ jobs:
             "vault_transmission_pass: \"${{ secrets.TRANSMISSION_PASS }}\"" \
             > vault.yml
 
+      - name: Write Ansible inventory
+        working-directory: ansible/inventory
+        run: |
+          sed \
+            -e "s/<PVE1_TAILSCALE_IP>/${{ inputs.pve1_host }}/g" \
+            -e "s/<PVE2_TAILSCALE_IP>/${{ inputs.pve2_host }}/g" \
+            hosts.yml.example > hosts.yml
+
       # --- Phase 1: Host preparation (Ansible) ---
       - name: "Phase 1: Prepare Proxmox hosts"
         working-directory: ansible
@@ -111,6 +124,8 @@ jobs:
           TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
           TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
           TF_VAR_container_password: ${{ secrets.CONTAINER_PASSWORD }}
+          TF_VAR_pve1_ssh_host: ${{ inputs.pve1_host }}
+          TF_VAR_pve2_ssh_host: ${{ inputs.pve2_host }}
 
       # --- Phase 3: Configuration management (Ansible) ---
       - name: "Phase 3: Configure containers"
@@ -122,4 +137,5 @@ jobs:
         if: always()
         run: |
           rm -f ansible/vault.yml
+          rm -f ansible/inventory/hosts.yml
           rm -f ~/.ssh/id_ed25519

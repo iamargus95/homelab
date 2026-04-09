@@ -22,6 +22,7 @@ env.local.secrets.sh
 
 # Ansible
 ansible/vault.yml
+ansible/inventory/hosts.yml
 *.retry
 
 # User-specific files (MonoDevelop/Xamarin Studio)

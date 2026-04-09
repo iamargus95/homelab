@@ -14,13 +14,11 @@ variable "proxmox_api_token" {
 variable "pve1_ssh_host" {
   description = "SSH host for pve1 (Tailscale IP)"
   type        = string
-  default     = "100.68.132.46"
 }
 
 variable "pve2_ssh_host" {
   description = "SSH host for pve2 (Tailscale IP)"
   type        = string
-  default     = "100.114.157.124"
 }
 
 # --- Container Defaults ---

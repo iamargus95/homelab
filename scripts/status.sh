@@ -2,15 +2,15 @@
 # List all homelab services with their IPs and ports.
 # Queries each Tailscale-enabled container for its LAN IP and checks service ports.
 #
-# Usage: ./scripts/status.sh
+# Usage: PVE1_HOST=<pve1-tailscale-ip> PVE2_HOST=<pve2-tailscale-ip> ./scripts/status.sh
 #
-# Requires: ssh access to pve hosts via Tailscale IPs in the inventory.
+# Requires: PVE1_HOST and PVE2_HOST env vars set to Tailscale IPs of each node.
 
 set -euo pipefail
 
 # --- Proxmox hosts (Tailscale IPs) ---
-PVE1_TS="100.68.132.46"
-PVE2_TS="100.114.157.124"
+PVE1_TS="${PVE1_HOST:?Set PVE1_HOST to the Tailscale IP of pve1}"
+PVE2_TS="${PVE2_HOST:?Set PVE2_HOST to the Tailscale IP of pve2}"
 
 # --- Container definitions: name|vmid|pve_host|services (service:port,...) ---
 CONTAINERS=(
