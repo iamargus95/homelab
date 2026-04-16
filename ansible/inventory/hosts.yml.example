@@ -33,5 +33,5 @@ all:
         adguard:
           hosts:
             ct100:
-              ansible_host: <PVE2_TAILSCALE_IP>
+              ansible_host: <PVE1_TAILSCALE_IP>
               proxmox_vmid: 100

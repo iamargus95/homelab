@@ -37,6 +37,31 @@
     state: present
     update_cache: yes
 
+- name: Ensure /opt/AdGuardHome exists before restore
+  ansible.builtin.file:
+    path: /opt/AdGuardHome
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check for exported config on control node
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../backups/adguard-config/AdGuardHome.yaml"
+  register: exported_cfg
+  delegate_to: localhost
+  become: no
+
+- name: Copy exported AdGuard config into new container
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../backups/adguard-config/AdGuardHome.yaml"
+    dest: /opt/AdGuardHome/AdGuardHome.yaml
+    owner: root
+    group: root
+    mode: "0644"
+    force: no
+  when: exported_cfg.stat.exists
+
 - name: Download and install AdGuard Home
   ansible.builtin.shell: |
     curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
