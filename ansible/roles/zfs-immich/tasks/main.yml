@@ -1,0 +1,24 @@
+---
+- name: Create Immich ZFS dataset on pve2
+  ansible.builtin.command: "zfs create {{ immich_zfs_pool }}/immich"
+  register: immich_dataset
+  changed_when: immich_dataset.rc == 0
+  failed_when: >-
+    immich_dataset.rc != 0
+    and 'dataset already exists' not in (immich_dataset.stderr | default(''))
+
+- name: Apply 100G reservation to immich dataset
+  ansible.builtin.command: "zfs set reservation=100G {{ immich_zfs_pool }}/immich"
+  changed_when: false
+
+- name: Create Immich subdirs on the ZFS dataset
+  ansible.builtin.file:
+    path: "/{{ immich_zfs_pool }}/immich/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - library
+    - postgres
+    - model-cache

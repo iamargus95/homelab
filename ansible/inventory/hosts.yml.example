@@ -11,6 +11,7 @@ all:
           ansible_host: <PVE2_TAILSCALE_IP>
           ansible_user: root
           zfs_pool: zfs-pve-2
+          immich_zfs_pool: zfs-pve-2
 
     containers:
       vars:

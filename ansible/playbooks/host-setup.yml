@@ -17,3 +17,9 @@
   become: yes
   roles:
     - zfs-media
+
+- name: Prepare ZFS immich storage on pve2
+  hosts: pve2
+  become: yes
+  roles:
+    - zfs-immich

@@ -10,6 +10,18 @@
   changed_when: zfs_result.rc == 0
   failed_when: zfs_result.rc != 0 and 'dataset already exists' not in (zfs_result.stderr | default(''))
 
+- name: Apply reservation to media dataset (guarantees 200G for media even if pool fills)
+  ansible.builtin.command: "zfs set reservation=200G {{ zfs_pool }}/media"
+  changed_when: false
+
+- name: Create immich-backup dataset (target of pve2 → pve1 zfs send)
+  ansible.builtin.command: "zfs create {{ zfs_pool }}/immich-backup"
+  register: immich_backup_result
+  changed_when: immich_backup_result.rc == 0
+  failed_when: >-
+    immich_backup_result.rc != 0
+    and 'dataset already exists' not in (immich_backup_result.stderr | default(''))
+
 - name: Set media directory ownership
   ansible.builtin.file:
     path: "{{ media_dir }}"
