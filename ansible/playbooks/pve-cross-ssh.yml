@@ -1,0 +1,56 @@
+---
+# Set up a dedicated SSH keypair for pve2 root -> pve1 root.
+# Used by the nightly immich-backup.sh for `zfs send | ssh | zfs receive`.
+# Idempotent: skips keygen if the key already exists.
+
+- name: Generate immich-backup SSH key on pve2
+  hosts: pve2
+  become: yes
+  tasks:
+    - name: Ensure /root/.ssh exists
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Generate ed25519 key for immich-backup
+      community.crypto.openssh_keypair:
+        path: /root/.ssh/immich_backup_ed25519
+        type: ed25519
+        comment: "immich-backup@pve2"
+        owner: root
+        group: root
+        mode: "0600"
+      register: keypair
+
+    - name: Read public key
+      ansible.builtin.slurp:
+        src: /root/.ssh/immich_backup_ed25519.pub
+      register: pve2_pubkey
+
+    - name: Add ssh config alias using immich-backup key
+      ansible.builtin.blockinfile:
+        path: /root/.ssh/config
+        create: yes
+        owner: root
+        group: root
+        mode: "0600"
+        marker: "# {mark} ANSIBLE MANAGED: immich-backup"
+        block: |
+          Host {{ hostvars['pve1'].ansible_host }}
+            IdentityFile /root/.ssh/immich_backup_ed25519
+            IdentitiesOnly yes
+            StrictHostKeyChecking accept-new
+
+- name: Install public key on pve1
+  hosts: pve1
+  become: yes
+  tasks:
+    - name: Authorize pve2 backup key
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ hostvars['pve2'].pve2_pubkey.content | b64decode }}"
+        comment: "immich-backup@pve2"
+        state: present
