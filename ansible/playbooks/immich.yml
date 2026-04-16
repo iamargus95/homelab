@@ -1,0 +1,10 @@
+---
+- name: Configure Immich container
+  hosts: immich
+  become: yes
+  vars_files:
+    - ../vault.yml
+  roles:
+    - common
+    - immich
+    - tailscale
