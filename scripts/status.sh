@@ -14,9 +14,10 @@ PVE2_TS="${PVE2_HOST:?Set PVE2_HOST to the Tailscale IP of pve2}"
 
 # --- Container definitions: name|vmid|pve_host|services (service:port,...) ---
 CONTAINERS=(
-  "adguard|100|${PVE2_TS}|AdGuard Home:3000,DNS:53"
+  "adguard|100|${PVE1_TS}|AdGuard Home:3000,DNS:53"
   "jellyfin|101|${PVE1_TS}|Jellyfin:8096"
-  "mediastack|102|${PVE1_TS}|Transmission:9091,Radarr:7878,Sonarr:8989,Prowlarr:9696,FlareSolverr:8191"
+  "transmission|102|${PVE1_TS}|Transmission:9091"
+  "immich|103|${PVE2_TS}|Immich:2283"
 )
 
 divider="----------------------------------------------------------------------"

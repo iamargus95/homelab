@@ -430,3 +430,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# AdGuard migration config backups (pre-destroy/recreate)
+/backups/

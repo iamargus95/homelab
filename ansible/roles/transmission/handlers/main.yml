@@ -3,13 +3,6 @@
   ansible.builtin.systemd:
     daemon_reload: yes
 
-- name: restart flaresolverr
-  ansible.builtin.systemd:
-    name: flaresolverr
-    state: restarted
-    enabled: yes
-    daemon_reload: yes
-
 - name: restart transmission
   ansible.builtin.systemd:
     name: transmission-daemon

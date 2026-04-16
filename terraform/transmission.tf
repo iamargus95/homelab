@@ -1,11 +1,11 @@
-module "mediastack" {
+module "transmission" {
   source = "./modules/lxc-container"
 
   vmid         = 102
-  hostname     = "mediastack"
+  hostname     = "transmission"
   target_node  = "pve1"
   cores        = 2
-  memory       = 4096
+  memory       = 2048
   disk_size    = 15
   storage_pool = "zfs-pve-1"
   template_id  = var.template_id

@@ -1,0 +1,5 @@
+# Managed by Ansible — Immich nightly backup (03:00 IST)
+CRON_TZ=Asia/Kolkata
+MAILTO=""
+
+0 3 * * * root {{ immich_backup_script_path }} >> {{ immich_backup_log_path }} 2>&1

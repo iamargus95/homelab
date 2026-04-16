@@ -11,6 +11,7 @@ all:
           ansible_host: <PVE2_TAILSCALE_IP>
           ansible_user: root
           zfs_pool: zfs-pve-2
+          immich_zfs_pool: zfs-pve-2
 
     containers:
       vars:
@@ -23,7 +24,7 @@ all:
               ansible_host: <PVE1_TAILSCALE_IP>
               proxmox_vmid: 101
 
-        mediastack:
+        transmission:
           hosts:
             ct102:
               ansible_host: <PVE1_TAILSCALE_IP>
@@ -32,5 +33,11 @@ all:
         adguard:
           hosts:
             ct100:
-              ansible_host: <PVE2_TAILSCALE_IP>
+              ansible_host: <PVE1_TAILSCALE_IP>
               proxmox_vmid: 100
+
+        immich:
+          hosts:
+            ct103:
+              ansible_host: <PVE2_TAILSCALE_IP>
+              proxmox_vmid: 103

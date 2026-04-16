@@ -1,9 +1,15 @@
 ---
-- name: Configure all containers
+- name: Configure Jellyfin
   ansible.builtin.import_playbook: jellyfin.yml
 
-- name: Configure mediastack
-  ansible.builtin.import_playbook: mediastack.yml
+- name: Configure Transmission
+  ansible.builtin.import_playbook: transmission.yml
 
-- name: Configure adguard
+- name: Configure AdGuard
   ansible.builtin.import_playbook: adguard.yml
+
+- name: Configure Immich
+  ansible.builtin.import_playbook: immich.yml
+
+- name: Install Immich backup pipeline on pve2 host
+  ansible.builtin.import_playbook: immich-backup.yml

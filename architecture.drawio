@@ -32,7 +32,7 @@
         </mxCell>
 
         <!-- Mediastack container -->
-        <mxCell id="mediastack" value="&lt;b style='font-size:13px'&gt;CT 102: mediastack&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 4 GiB RAM&lt;br&gt;Root: 15 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Transmission (downloads)&lt;br&gt;Prowlarr (indexers)&lt;br&gt;Sonarr (TV)&lt;br&gt;Radarr (Movies)&lt;br&gt;&lt;br&gt;&lt;i&gt;TUN device (VPN)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+        <mxCell id="transmission" value="&lt;b style='font-size:13px'&gt;CT 102: transmission&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 15 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Transmission only (BT client)&lt;br&gt;&lt;br&gt;&lt;i&gt;TUN device (VPN)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
           <mxGeometry x="310" y="160" width="200" height="190" as="geometry"/>
         </mxCell>
 
@@ -45,12 +45,12 @@
         <mxCell id="jf-mount" value="/media" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="jellyfin" target="media-storage">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="ms-mount" value="/data" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="mediastack" target="media-storage">
+        <mxCell id="ms-mount" value="/data" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="transmission" target="media-storage">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
         <!-- Mediastack internal arrow -->
-        <mxCell id="arr-flow" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;" edge="1" parent="1" source="jellyfin" target="mediastack">
+        <mxCell id="arr-flow" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;" edge="1" parent="1" source="jellyfin" target="transmission">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
@@ -86,7 +86,7 @@
         <mxCell id="jf-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="jellyfin" target="vmbr0-pve1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="ms-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="mediastack" target="vmbr0-pve1">
+        <mxCell id="ms-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="transmission" target="vmbr0-pve1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="ag-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="adguard" target="vmbr0-pve2">
@@ -130,6 +130,7 @@
         </mxCell>
 
       </root>
+    <!-- TODO(human): open in draw.io to visually (1) move AdGuard from pve2 to pve1, (2) add a CT 103 Immich box on the pve2 side, (3) draw a backup arrow pve2 immich -> pve1 immich-backup, labeled "ZFS send @ 03:00 IST via Tailscale". -->
     </mxGraphModel>
   </diagram>
 </mxfile>

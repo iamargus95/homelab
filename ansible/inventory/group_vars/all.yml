@@ -7,3 +7,13 @@ media_user: mediauser
 media_group: mediagroup
 media_uid: 1000
 media_gid: 1000
+
+# Immich backup pipeline (runs on pve2 host, targets pve1)
+immich_backup_src_dataset: "zfs-pve-2/immich"
+immich_backup_dst_dataset: "zfs-pve-1/immich-backup"
+immich_backup_vmid: 103
+immich_backup_compose_file: "/opt/immich/docker-compose.yml"
+immich_backup_script_path: "/usr/local/bin/immich-backup.sh"
+immich_backup_log_path: "/var/log/immich-backup.log"
+immich_backup_retention_days: 7
+immich_backup_remote_host: "{{ hostvars['pve1'].ansible_host }}"

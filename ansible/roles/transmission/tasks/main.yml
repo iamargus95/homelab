@@ -1,0 +1,95 @@
+---
+# Clean up legacy arr/flaresolverr services if upgrading from the old mediastack.
+- name: Check for legacy services to remove
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ item }}.service"
+  loop:
+    - radarr
+    - sonarr
+    - prowlarr
+    - flaresolverr
+  register: legacy_services
+
+- name: Stop and disable legacy services
+  ansible.builtin.systemd:
+    name: "{{ item.item }}"
+    state: stopped
+    enabled: no
+  loop: "{{ legacy_services.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  failed_when: false
+
+- name: Remove legacy systemd units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.service"
+    state: absent
+  loop:
+    - radarr
+    - sonarr
+    - prowlarr
+    - flaresolverr
+  notify: reload systemd
+
+- name: Remove legacy install directories
+  ansible.builtin.file:
+    path: "/opt/{{ item }}"
+    state: absent
+  loop:
+    - radarr
+    - sonarr
+    - prowlarr
+    - flaresolverr
+
+- name: Remove legacy data directories
+  ansible.builtin.file:
+    path: "/var/lib/{{ item }}"
+    state: absent
+  loop:
+    - radarr
+    - sonarr
+    - prowlarr
+
+# --- Transmission ---
+- name: Install Transmission
+  ansible.builtin.apt:
+    name: transmission-daemon
+    state: present
+    update_cache: yes
+
+- name: Stop Transmission for configuration
+  ansible.builtin.systemd:
+    name: transmission-daemon
+    state: stopped
+
+- name: Create Transmission systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/transmission-daemon.service.d
+    state: directory
+
+- name: Deploy Transmission systemd override
+  ansible.builtin.template:
+    src: transmission-override.conf.j2
+    dest: /etc/systemd/system/transmission-daemon.service.d/override.conf
+  notify: restart transmission
+
+- name: Configure Transmission settings
+  ansible.builtin.lineinfile:
+    path: /etc/transmission-daemon/settings.json
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '"rpc-authentication-required"', line: '    "rpc-authentication-required": true,' }
+    - { regexp: '"rpc-username"', line: '    "rpc-username": "{{ transmission_user }}",' }
+    - { regexp: '"rpc-password"', line: '    "rpc-password": "{{ transmission_pass }}",' }
+    - { regexp: '"rpc-whitelist-enabled"', line: '    "rpc-whitelist-enabled": false,' }
+    - { regexp: '"download-dir"', line: '    "download-dir": "{{ transmission_download_dir }}",' }
+  notify: restart transmission
+
+- name: Start Transmission
+  ansible.builtin.systemd:
+    name: transmission-daemon
+    state: started
+    enabled: yes
+    daemon_reload: yes

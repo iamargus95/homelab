@@ -1,0 +1,53 @@
+---
+# One-shot play: fetch AdGuard config from the live pve2 CT 100 BEFORE
+# destroying it. Run manually before `terraform apply`.
+#
+# Usage:  ansible-playbook -i inventory/hosts.yml playbooks/adguard-migrate.yml
+#
+# Result: ./backups/adguard-config-<timestamp>.tar.gz on the control node,
+#         plus individual files in ./backups/adguard-config/.
+
+- name: Export AdGuard config from the existing CT 100
+  hosts: adguard
+  become: yes
+  vars_files:
+    - ../vault.yml
+  tasks:
+    - name: Check whether AdGuard config exists in this container
+      ansible.builtin.stat:
+        path: /opt/AdGuardHome/AdGuardHome.yaml
+      register: adguard_cfg
+
+    - name: Fail if no AdGuard config found
+      ansible.builtin.fail:
+        msg: "No /opt/AdGuardHome/AdGuardHome.yaml on CT 100 — nothing to export."
+      when: not adguard_cfg.stat.exists
+
+    - name: Fetch AdGuardHome.yaml to the control node
+      ansible.builtin.fetch:
+        src: /opt/AdGuardHome/AdGuardHome.yaml
+        dest: "{{ playbook_dir }}/../../backups/adguard-config/AdGuardHome.yaml"
+        flat: yes
+
+    - name: Fetch filters directory listing (informational)
+      ansible.builtin.find:
+        paths: /opt/AdGuardHome/data/filters
+        patterns: "*.txt"
+      register: adguard_filters
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "Exported: {{ playbook_dir }}/../../backups/adguard-config/AdGuardHome.yaml"
+          - "Filter lists on the old container: {{ adguard_filters.files | length }} files (will re-download automatically)"
+
+- name: Create timestamped archive on the control node
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Archive the exported config
+      ansible.builtin.archive:
+        path: "{{ playbook_dir }}/../../backups/adguard-config"
+        dest: "{{ playbook_dir }}/../../backups/adguard-config-{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}.tar.gz"
+        format: gz

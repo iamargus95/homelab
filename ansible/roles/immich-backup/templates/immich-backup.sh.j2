@@ -1,0 +1,49 @@
+#!/bin/bash
+# Immich nightly backup: snapshot zfs-pve-2/immich, restart Immich,
+# zfs-send the snapshot to pve1's immich-backup dataset.
+# Managed by Ansible (role: immich-backup).
+
+set -euo pipefail
+
+DATASET="{{ immich_backup_src_dataset }}"
+REMOTE="root@{{ immich_backup_remote_host }}"
+REMOTE_DATASET="{{ immich_backup_dst_dataset }}"
+VMID="{{ immich_backup_vmid }}"
+COMPOSE_FILE="{{ immich_backup_compose_file }}"
+RETENTION="{{ immich_backup_retention_days }}"
+
+TS=$(date +%Y%m%d-%H%M)
+SNAP="${DATASET}@backup-${TS}"
+
+log() { echo "[$(date -Iseconds)] $*"; }
+
+log "Stopping Immich in CT ${VMID}"
+pct exec "${VMID}" -- docker compose -f "${COMPOSE_FILE}" stop
+
+log "Creating ZFS snapshot ${SNAP}"
+zfs snapshot "${SNAP}"
+
+log "Starting Immich in CT ${VMID}"
+pct exec "${VMID}" -- docker compose -f "${COMPOSE_FILE}" start
+
+PREV=$(zfs list -t snapshot -H -o name "${DATASET}" 2>/dev/null \
+       | grep '@backup-' | grep -v -F "${SNAP}" | tail -1 || true)
+
+if [ -n "${PREV}" ] && ssh "${REMOTE}" "zfs list -t snapshot -H -o name ${REMOTE_DATASET}@${PREV##*@}" >/dev/null 2>&1; then
+  log "Sending incremental ${PREV} -> ${SNAP} to ${REMOTE}"
+  zfs send -i "${PREV}" "${SNAP}" | ssh "${REMOTE}" "zfs receive -F ${REMOTE_DATASET}"
+else
+  log "No matching previous snapshot on remote; sending full stream ${SNAP}"
+  zfs send "${SNAP}" | ssh "${REMOTE}" "zfs receive -F ${REMOTE_DATASET}"
+fi
+
+log "Pruning local snapshots older than ${RETENTION} newest"
+zfs list -t snapshot -H -o name "${DATASET}" \
+  | grep '@backup-' | sort \
+  | head -n -"${RETENTION}" \
+  | xargs -r -n1 zfs destroy || true
+
+log "Pruning remote snapshots older than ${RETENTION} newest"
+ssh "${REMOTE}" "zfs list -t snapshot -H -o name ${REMOTE_DATASET} | grep '@backup-' | sort | head -n -${RETENTION} | xargs -r -n1 zfs destroy" || true
+
+log "Backup complete: ${SNAP}"

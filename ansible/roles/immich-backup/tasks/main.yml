@@ -1,0 +1,33 @@
+---
+- name: Deploy the Immich backup script on pve2
+  ansible.builtin.template:
+    src: immich-backup.sh.j2
+    dest: "{{ immich_backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy the Immich backup cron entry
+  ansible.builtin.template:
+    src: immich-backup.cron.j2
+    dest: /etc/cron.d/immich-backup
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy logrotate config for the backup log
+  ansible.builtin.template:
+    src: immich-backup.logrotate.j2
+    dest: /etc/logrotate.d/immich-backup
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Touch backup log so logrotate finds it on first run
+  ansible.builtin.file:
+    path: "{{ immich_backup_log_path }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  changed_when: false

@@ -1,10 +1,10 @@
 ---
-- name: Configure Mediastack container
-  hosts: mediastack
+- name: Configure Immich container
+  hosts: immich
   become: yes
   vars_files:
     - ../vault.yml
   roles:
     - common
-    - mediastack
+    - immich
     - tailscale

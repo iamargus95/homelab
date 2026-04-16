@@ -6,11 +6,11 @@ output "jellyfin" {
   }
 }
 
-output "mediastack" {
-  description = "Mediastack container details"
+output "transmission" {
+  description = "Transmission container details"
   value = {
-    id       = module.mediastack.container_id
-    hostname = module.mediastack.hostname
+    id       = module.transmission.container_id
+    hostname = module.transmission.hostname
   }
 }
 
@@ -19,5 +19,13 @@ output "adguard" {
   value = {
     id       = module.adguard.container_id
     hostname = module.adguard.hostname
+  }
+}
+
+output "immich" {
+  description = "Immich container details"
+  value = {
+    id       = module.immich.container_id
+    hostname = module.immich.hostname
   }
 }
