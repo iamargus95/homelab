@@ -1597,6 +1597,8 @@ Expected:
 
 ### Task 9.2: Export AdGuard config
 
+**IMPORTANT — inventory ordering**: the `adguard` group's `ansible_host` in your real (gitignored) `inventory/hosts.yml` currently points at pve2 (the old location). Run the export (this task) BEFORE updating that line. After the export completes, change `adguard.ansible_host` to your **pve1** Tailscale IP so the later site.yml run reaches the new container on pve1. `hosts.yml.example` already reflects the post-migration layout (pve1).
+
 - [ ] **Step 1: Run the adguard-migrate playbook**
 
 ```bash

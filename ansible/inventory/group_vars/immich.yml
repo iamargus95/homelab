@@ -1,7 +1,7 @@
 # Immich-specific variables
 
 # Pin to a tested Immich release (update this to bump version intentionally)
-immich_version: "v1.119.0"
+immich_version: "v2.7.5"
 
 # Compose/env paths (inside the LXC)
 immich_root: /opt/immich
