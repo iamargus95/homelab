@@ -24,7 +24,7 @@ all:
               ansible_host: <PVE1_TAILSCALE_IP>
               proxmox_vmid: 101
 
-        mediastack:
+        transmission:
           hosts:
             ct102:
               ansible_host: <PVE1_TAILSCALE_IP>

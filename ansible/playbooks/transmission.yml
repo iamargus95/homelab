@@ -1,10 +1,10 @@
 ---
-- name: Configure Mediastack container
-  hosts: mediastack
+- name: Configure Transmission container
+  hosts: transmission
   become: yes
   vars_files:
     - ../vault.yml
   roles:
     - common
-    - mediastack
+    - transmission
     - tailscale

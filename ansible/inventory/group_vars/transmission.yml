@@ -1,0 +1,8 @@
+# Transmission-specific variables
+
+media_data_mount: /data
+
+# Transmission auth (from vault)
+transmission_user: "{{ vault_transmission_user }}"
+transmission_pass: "{{ vault_transmission_pass }}"
+transmission_download_dir: /data/downloads
