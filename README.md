@@ -51,7 +51,9 @@ Each node has three storage backends:
 | local-lvm      | pve2  | LVM       | VM/CT disks                          | —          |
 | zfs-pve-2      | pve2  | ZFS       | VM/CT disks                          | —          |
 
-The ZFS pool on pve1 (`zfs-pve-1`) hosts a shared `/zfs-pve-1/media` dataset that is bind-mounted into both the Jellyfin and Mediastack containers, allowing them to share the same media library.
+The ZFS pool on pve1 (`zfs-pve-1`) hosts a shared `/zfs-pve-1/media` dataset (with a **200 GB reservation**) bind-mounted into both Jellyfin and Transmission so they share the same media library. pve1 also hosts `zfs-pve-1/immich-backup`, which receives nightly ZFS snapshots from pve2 for cross-node backup.
+
+The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB reservation**, bind-mounted into the Immich container at `/data`.
 
 ## Disk Health
 
@@ -70,10 +72,10 @@ The ZFS pool on pve1 (`zfs-pve-1`) hosts a shared `/zfs-pve-1/media` dataset tha
 
 The media stack runs on pve1 and provides automated media management and streaming.
 
-| VMID | Name        | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
-|------|-------------|------|--------|-------|--------|-----------|---------------|
-| 101  | jellyfin    | LXC  | Ubuntu | 2     | 2 GiB  | 10 GB     | Yes           |
-| 102  | mediastack  | LXC  | Ubuntu | 2     | 4 GiB  | 15 GB     | Yes           |
+| VMID | Name         | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
+|------|--------------|------|--------|-------|--------|-----------|---------------|
+| 101  | jellyfin     | LXC  | Ubuntu | 2     | 2 GiB  | 10 GB     | Yes           |
+| 102  | transmission | LXC  | Ubuntu | 2     | 2 GiB  | 15 GB     | Yes           |
 
 Both containers are unprivileged with nesting enabled, use DHCP for networking on `vmbr0`, and resolve DNS via `1.1.1.1` and `8.8.8.8`.
 
@@ -86,33 +88,68 @@ Self-hosted media server for streaming movies and TV shows.
 - **TUN device:** `/dev/net/tun` passed through for Tailscale
 - **Port:** `8096` (HTTP)
 
-#### Mediastack (CT 102)
+#### Transmission (CT 102)
 
-Bundles the *arr suite, FlareSolverr, and Transmission into a single container:
+Lean BitTorrent-only container (the *arr suite was removed in v2).
 
 | Service          | Port  | Purpose                                         |
 |------------------|-------|--------------------------------------------------|
 | **Transmission** | 9091  | BitTorrent client for downloading media          |
-| **Prowlarr**     | 9696  | Indexer manager integrating with Sonarr & Radarr |
-| **Sonarr**       | 8989  | Automated TV show management and downloading     |
-| **Radarr**       | 7878  | Automated movie management and downloading       |
-| **FlareSolverr** | 8191  | Proxy server to bypass Cloudflare protection     |
 
 - **Media mount:** `/zfs-pve-1/media` → `/data`
 - **TUN device:** `/dev/net/tun` passed through for Tailscale
 - All services run as `mediauser:mediagroup` (UID/GID 1000, mapped to host 101000)
 
-### DNS / Ad Blocking (pve2)
+### DNS / Ad Blocking (pve1)
 
 | VMID | Name     | Type | OS     | Cores | RAM     | Root Disk | Start on Boot |
 |------|----------|------|--------|-------|---------|-----------|---------------|
-| 100  | adguard  | LXC  | Ubuntu | 1     | 512 MB  | 2 GB      | Yes           |
+| 100  | adguard  | LXC  | Ubuntu | 1     | 512 MB  | 10 GB     | Yes           |
 
-**AdGuard Home** — Provides DNS-level ad and tracker blocking for the entire network.
+**AdGuard Home** — Provides DNS-level ad and tracker blocking for the entire network. Relocated from pve2 → pve1 in v2 so pve2 can be a dedicated Immich host. A DHCP reservation is recommended to keep the AdGuard IP stable across reboots; update your router/DHCP server to advertise AdGuard's pve1 IP as the LAN DNS.
 
-- **Storage:** Root disk on `local-lvm`
+- **Storage:** Root disk on `local-lvm` (NVMe on pve1)
 - **Network:** DHCP on `vmbr0`
 - **Port:** `3000` (web UI)
+
+### Photos / Immich (pve2)
+
+| VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
+|------|---------|------|--------|-------|--------|-----------|---------------|
+| 103  | immich  | LXC  | Ubuntu | 4     | 4 GiB  | 20 GB     | Yes           |
+
+**Immich** — self-hosted photos backup (Google Photos alternative). Runs as a Docker Compose stack (server, machine-learning, Redis, PostgreSQL with pgvector) inside an unprivileged LXC, using the `fuse-overlayfs` Docker storage driver.
+
+- **Storage:** Root disk on `zfs-pve-2` (HDD). Photo library + Postgres state live on the bind-mounted `/zfs-pve-2/immich` (100 GB ZFS reservation) → `/data`.
+- **Network:** DHCP on `vmbr0`, plus Tailscale for remote access.
+- **Port:** `2283` (web UI)
+
+## Immich Backup
+
+A nightly cron on **pve2 at 03:00 Asia/Kolkata (IST)** snapshots the Immich ZFS dataset and sends it incrementally to pve1:
+
+1. `docker compose stop` inside CT 103 (~30s downtime)
+2. `zfs snapshot zfs-pve-2/immich@backup-<timestamp>`
+3. Restart Immich immediately
+4. `zfs send -i <prev> <snap> | ssh pve1 "zfs receive zfs-pve-1/immich-backup"` (first run is a full send)
+5. Prune to the 7 most recent snapshots on both sides
+
+The cron uses `CRON_TZ=Asia/Kolkata` so the schedule is locale-explicit without changing the Proxmox host's system timezone. Logs land in `/var/log/immich-backup.log` (rotated weekly, 8 weeks kept).
+
+### Manual trigger
+
+```bash
+ssh root@<pve2-tailscale-ip> /usr/local/bin/immich-backup.sh
+```
+
+### Restore (pve1 → pve2)
+
+On pve2:
+
+```bash
+ssh pve1 "zfs send zfs-pve-1/immich-backup@<snap>" | zfs receive zfs-pve-2/immich-restore
+# then: rename or re-mount immich-restore in place of immich, and restart the compose stack.
+```
 
 ## Network
 
@@ -141,7 +178,8 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 | pve1               | `<PVE1_TAILSCALE_IP>`     | pve1 (host)     |
 | pve2               | `<PVE2_TAILSCALE_IP>`     | pve2 (host)     |
 | jellyfin-1         | `<JELLYFIN_TAILSCALE_IP>` | CT 101          |
-| mediastack-1       | `<MEDIA_TAILSCALE_IP>`    | CT 102          |
+| transmission-1     | `<MEDIA_TAILSCALE_IP>`    | CT 102          |
+| immich-1           | `<IMMICH_TAILSCALE_IP>`   | CT 103          |
 
 MagicDNS is enabled, so nodes are reachable by hostname:
 
@@ -163,8 +201,9 @@ homelab/
 │   ├── variables.tf               # Variable declarations
 │   ├── outputs.tf                 # Container IDs and hostnames
 │   ├── jellyfin.tf                # CT 101 definition
-│   ├── mediastack.tf              # CT 102 definition
-│   ├── adguard.tf                 # CT 100 definition
+│   ├── transmission.tf            # CT 102 definition
+│   ├── adguard.tf                 # CT 100 definition (pve1)
+│   ├── immich.tf                  # CT 103 definition (pve2)
 │   ├── terraform.tfvars.example   # Example variables (copy to terraform.tfvars)
 │   └── modules/lxc-container/     # Reusable LXC container module
 │
@@ -177,9 +216,13 @@ homelab/
 │   │   ├── site.yml               # Master playbook (all containers)
 │   │   ├── host-setup.yml         # ZFS datasets, subuid/subgid on PVE hosts
 │   │   ├── jellyfin.yml           # Jellyfin container config
-│   │   ├── mediastack.yml         # Mediastack container config
-│   │   └── adguard.yml            # AdGuard container config
-│   ├── roles/                     # common, jellyfin, mediastack, adguard, tailscale, zfs-media
+│   │   ├── transmission.yml       # Transmission container config
+│   │   ├── adguard.yml            # AdGuard container config
+│   │   ├── adguard-migrate.yml    # One-shot: export AdGuard config before pve2→pve1 move
+│   │   ├── immich.yml             # Immich container config
+│   │   ├── immich-backup.yml      # Install nightly backup cron on pve2
+│   │   └── pve-cross-ssh.yml      # One-shot: pve2→pve1 SSH key for zfs-send
+│   ├── roles/                     # common, jellyfin, transmission, adguard, tailscale, zfs-media, zfs-immich, immich, immich-backup
 │   ├── vault.yml.example          # Example secrets (copy and encrypt with ansible-vault)
 │   └── vault.yml                  # Encrypted secrets (gitignored)
 │
