@@ -104,7 +104,8 @@ Output: a local `backups/adguard-config-<timestamp>.tar.gz` checked into neither
 **Terraform changes (`terraform/adguard.tf`):**
 - `target_node = "pve1"` (was `pve2`)
 - `pve_ssh_host = var.pve1_ssh_host` (was `pve2_ssh_host`)
-- Other fields unchanged: `vmid=100`, `cores=1`, `memory=512`, `disk_size=2`, `storage_pool="local-lvm"` (NVMe on pve1 — DNS benefits from low latency, and it's not media data so the sda constraint doesn't apply).
+- `disk_size = 10` (was `2`) — more headroom for AdGuard query logs, stats, and filter list cache. Small fraction of the ~250GB NVMe LVM on pve1.
+- Other fields unchanged: `vmid=100`, `cores=1`, `memory=512`, `storage_pool="local-lvm"` (NVMe on pve1 — DNS benefits from low latency, and it's not media data so the sda constraint doesn't apply).
 
 Since `target_node` change is a ForceNew in the Proxmox provider, `terraform apply` will destroy CT 100 on pve2 and create a fresh CT 100 on pve1. Expected disruption: LAN-wide DNS outage for ~2–5 min during the destroy→create→Ansible-configure sequence. Plan to run the migration during the low-traffic window (also 03:00 IST).
 
