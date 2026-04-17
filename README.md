@@ -175,11 +175,13 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 
 | Tailscale Node     | Tailscale IP              | Runs On         |
 |--------------------|---------------------------|-----------------|
-| pve1               | `<PVE1_TAILSCALE_IP>`     | pve1 (host)     |
-| pve2               | `<PVE2_TAILSCALE_IP>`     | pve2 (host)     |
-| jellyfin-1         | `<JELLYFIN_TAILSCALE_IP>` | CT 101          |
-| transmission-1     | `<MEDIA_TAILSCALE_IP>`    | CT 102          |
-| immich-1           | `<IMMICH_TAILSCALE_IP>`   | CT 103          |
+| pve1               | `100.68.132.46`           | pve1 (host)     |
+| pve2               | `100.114.157.124`         | pve2 (host)     |
+| jellyfin-1         | (assigned on first join)  | CT 101          |
+| transmission-1     | (assigned on first join)  | CT 102          |
+| immich-1           | (assigned on first join)  | CT 103          |
+
+> Tailscale IPs are in the 100.64.0.0/10 CGNAT range and are only reachable from inside this tailnet — not from the public internet. Container IPs are assigned on first `tailscale up` and stable thereafter.
 
 MagicDNS is enabled, so nodes are reachable by hostname:
 
@@ -242,7 +244,7 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | **Plan** (`plan.yml`) | Pull request to `main` | Runs `tofu plan` and posts the output as a PR comment. Runs Ansible lint. |
-| **Deploy** (`deploy.yml`) | Push to `main` / manual | Connects to Tailscale, then runs the full 3-phase deploy. |
+| **Deploy** (`deploy.yml`) | Manual (`workflow_dispatch`) | Connects to Tailscale, then runs the full 3-phase deploy: host-setup → tofu apply → site.yml. |
 
 ### GitHub Setup
 
@@ -266,6 +268,9 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `SSH_PRIVATE_KEY` | SSH private key for Proxmox hosts |
 | `TRANSMISSION_USER` | Transmission RPC username |
 | `TRANSMISSION_PASS` | Transmission RPC password |
+| `IMMICH_DB_PASSWORD` | Password for Immich's internal PostgreSQL (alphanumeric only, long random string) |
+| `IMMICH_USER` | Admin email used to sign into Immich (e.g. `you@example.com`) |
+| `IMMICH_PASS` | Admin password for the Immich web UI |
 
 > `GITHUB_TOKEN` is provided automatically by GitHub Actions and is used by terraform-backend-git to read/write state.
 
@@ -282,6 +287,27 @@ Create a `production` environment (Settings → Environments) to add a manual ap
 #### State Branch
 
 The `tf-state` branch is created automatically on the first deploy. It stores the OpenTofu state file and uses git branches for state locking.
+
+#### Running a deploy
+
+1. Go to **Actions → Deploy → Run workflow** on GitHub.
+2. Enter the Tailscale IPs: `pve1_host=100.68.132.46`, `pve2_host=100.114.157.124`.
+3. (If `production` environment gate is configured) Approve the run.
+4. Watch logs. Expected phases: host-setup → cross-ssh → tofu init → tofu apply → site.yml.
+
+#### One-time v2 migration (run locally BEFORE the first GitHub Actions deploy of this branch)
+
+This branch renames CT 102 in state and destroys/recreates CT 100 (AdGuard). The automated workflow doesn't know about either, so do these **once**, locally, before triggering `deploy.yml`:
+
+```bash
+# 1. Export AdGuard config from the live pve2 CT 100 (produces backups/adguard-config/AdGuardHome.yaml)
+cd ansible && ansible-playbook -i inventory/hosts.yml playbooks/adguard-migrate.yml && cd ..
+
+# 2. Rename module.mediastack -> module.transmission in the tf-state branch
+GITHUB_TOKEN=<token> ./scripts/migrate-state.sh
+```
+
+Then trigger the GitHub Actions deploy as above. On subsequent deploys, skip the migration step — the workflow handles the normal flow.
 
 ## Local Deployment
 
