@@ -105,3 +105,25 @@
     state: started
     enabled: yes
     daemon_reload: yes
+
+- name: Wait for Immich server to respond
+  ansible.builtin.uri:
+    url: "http://localhost:2283/api/server/ping"
+    status_code: 200
+  register: immich_ping
+  until: immich_ping.status is defined and immich_ping.status == 200
+  retries: 30
+  delay: 5
+  when: immich_user | default('') | length > 0
+
+- name: Register Immich admin user (idempotent — 400/403 means already registered)
+  ansible.builtin.uri:
+    url: "http://localhost:2283/api/auth/admin-sign-up"
+    method: POST
+    body_format: json
+    body:
+      email: "{{ immich_user }}"
+      password: "{{ immich_pass }}"
+      name: "admin"
+    status_code: [201, 400, 403]
+  when: immich_user | default('') | length > 0

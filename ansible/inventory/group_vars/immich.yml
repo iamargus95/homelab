@@ -9,3 +9,7 @@ immich_data: /data
 
 # Database
 immich_db_password: "{{ vault_immich_db_password }}"
+
+# Admin user (email address) — used to register the first admin on initial launch
+immich_user: "{{ vault_immich_user }}"
+immich_pass: "{{ vault_immich_pass }}"
