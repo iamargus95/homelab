@@ -76,6 +76,9 @@ jobs:
             "vault_ts_auth_key: \"${{ secrets.TS_AUTH_KEY }}\"" \
             "vault_transmission_user: \"${{ secrets.TRANSMISSION_USER }}\"" \
             "vault_transmission_pass: \"${{ secrets.TRANSMISSION_PASS }}\"" \
+            "vault_immich_db_password: \"${{ secrets.IMMICH_DB_PASSWORD }}\"" \
+            "vault_immich_user: \"${{ secrets.IMMICH_USER }}\"" \
+            "vault_immich_pass: \"${{ secrets.IMMICH_PASS }}\"" \
             > vault.yml
 
       - name: Write Ansible inventory
@@ -90,6 +93,10 @@ jobs:
       - name: "Phase 1: Prepare Proxmox hosts"
         working-directory: ansible
         run: ansible-playbook playbooks/host-setup.yml
+
+      - name: "Phase 1b: Ensure pve2 -> pve1 SSH key for immich-backup"
+        working-directory: ansible
+        run: ansible-playbook playbooks/pve-cross-ssh.yml
 
       # --- Phase 2: Infrastructure provisioning (OpenTofu) ---
       - name: Tofu Init
@@ -128,9 +135,43 @@ jobs:
           TF_VAR_pve2_ssh_host: ${{ inputs.pve2_host }}
 
       # --- Phase 3: Configuration management (Ansible) ---
-      - name: "Phase 3: Configure containers"
+      # Run the per-container playbooks in parallel. Each one targets a
+      # different host group (jellyfin, transmission, adguard, immich, pve2),
+      # so there's no shared state to contend for. Output is grouped per
+      # playbook via GitHub Actions log groups so they stay readable even
+      # though they interleave. Exit non-zero if ANY playbook failed.
+      - name: "Phase 3: Configure containers (parallel)"
         working-directory: ansible
-        run: ansible-playbook playbooks/site.yml
+        run: |
+          set +e
+          names=(jellyfin transmission adguard immich immich-backup)
+          pids=()
+          mkdir -p /tmp/ansible-logs
+          for p in "${names[@]}"; do
+            ansible-playbook "playbooks/${p}.yml" > "/tmp/ansible-logs/${p}.log" 2>&1 &
+            pids+=($!)
+            echo "spawned ${p} (pid $!)"
+          done
+
+          rc=0
+          for i in "${!names[@]}"; do
+            wait "${pids[i]}"
+            code=$?
+            if [ "$code" -ne 0 ]; then
+              echo "::error::${names[i]} FAILED (exit $code)"
+              rc=1
+            else
+              echo "::notice::${names[i]} OK"
+            fi
+          done
+
+          for p in "${names[@]}"; do
+            echo "::group::ansible-playbook ${p}.yml"
+            cat "/tmp/ansible-logs/${p}.log"
+            echo "::endgroup::"
+          done
+
+          exit $rc
 
       # --- Cleanup ---
       - name: Cleanup secrets

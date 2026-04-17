@@ -11,14 +11,26 @@
   ansible.builtin.command: "zfs set reservation=100G {{ immich_zfs_pool }}/immich"
   changed_when: false
 
-- name: Create Immich subdirs on the ZFS dataset
+- name: Create Immich library dir (owned by container-UID 0 via LXC idmap + 100000)
   ansible.builtin.file:
-    path: "/{{ immich_zfs_pool }}/immich/{{ item }}"
+    path: "/{{ immich_zfs_pool }}/immich/library"
+    state: directory
+    owner: "100000"
+    group: "100000"
+    mode: "0755"
+
+- name: Create Immich postgres dir (owned by container-UID 999 via LXC idmap + 100000)
+  ansible.builtin.file:
+    path: "/{{ immich_zfs_pool }}/immich/postgres"
+    state: directory
+    owner: "100999"
+    group: "100999"
+    mode: "0700"
+
+- name: Create Immich model-cache dir (unused; named Docker volume handles ML cache)
+  ansible.builtin.file:
+    path: "/{{ immich_zfs_pool }}/immich/model-cache"
     state: directory
     owner: root
     group: root
     mode: "0755"
-  loop:
-    - library
-    - postgres
-    - model-cache
