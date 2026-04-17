@@ -2,6 +2,15 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
+- name: Ensure systemd-resolved drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: ansible_facts.services['systemd-resolved.service'] is defined
+
 - name: Disable systemd-resolved DNSStubListener to free port 53
   ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/adguardhome.conf

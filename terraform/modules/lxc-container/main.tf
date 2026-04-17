@@ -63,16 +63,9 @@ resource "proxmox_virtual_environment_container" "this" {
     order = 1
   }
 
-  # Start stopped so we can inject raw LXC config before first boot
-  started = length(var.extra_lxc_config) > 0 ? false : true
-
-  dynamic "mount_point" {
-    for_each = var.mountpoints
-    content {
-      volume = mount_point.value.host_path
-      path   = mount_point.value.container_path
-    }
-  }
+  # Start stopped so the provisioner can inject raw LXC config + bind mounts
+  # before the container boots for the first time.
+  started = (length(var.extra_lxc_config) > 0 || length(var.mountpoints) > 0) ? false : true
 
   lifecycle {
     ignore_changes = [
@@ -83,17 +76,27 @@ resource "proxmox_virtual_environment_container" "this" {
       # causing perpetual drift that the Proxmox API rejects (HTTP 500).
       idmap,
       started,
+      # Bind-mount points are applied via `pct set --mp<n>` in the provisioner
+      # because the Proxmox REST API refuses to accept type=bind from any user
+      # (even root@pam with privsep disabled).
+      mount_point,
     ]
   }
 }
 
-# Inject raw LXC config lines (idmap, cgroup, device passthrough) that the
-# provider doesn't support natively, then start the container.
+# Inject raw LXC config (idmap, cgroup, device passthrough) AND bind-mount
+# entries via root SSH. Needed because:
+#   1. idmap/cgroup entries aren't exposed by the bpg/proxmox provider.
+#   2. Proxmox REST API rejects bind mount points with "Permission check
+#      failed (mount point type bind is only allowed for root@pam)" even
+#      when the token user IS root@pam with privilege separation disabled.
+#      The CLI (`pct set`) accepts them because it bypasses that check.
 resource "terraform_data" "lxc_config_injection" {
-  count = length(var.extra_lxc_config) > 0 ? 1 : 0
+  count = (length(var.extra_lxc_config) > 0 || length(var.mountpoints) > 0) ? 1 : 0
 
   triggers_replace = [
     join("\n", var.extra_lxc_config),
+    jsonencode(var.mountpoints),
     proxmox_virtual_environment_container.this.vm_id,
   ]
 
@@ -105,11 +108,14 @@ resource "terraform_data" "lxc_config_injection" {
     }
 
     inline = concat(
-      # Remove any previously injected lines (idempotent re-runs)
+      # Remove previously injected lxc.* and mp<n>: lines so re-runs are idempotent.
       ["sed -i '/^lxc\\./d' /etc/pve/lxc/${var.vmid}.conf"],
-      # Append each config line
+      ["sed -i '/^mp[0-9]/d' /etc/pve/lxc/${var.vmid}.conf"],
+      # Append each raw LXC config line.
       [for line in var.extra_lxc_config : "echo '${line}' >> /etc/pve/lxc/${var.vmid}.conf"],
-      # Start the container
+      # Apply each bind mount via pct set (REST-API path is blocked).
+      [for idx, mp in var.mountpoints : "pct set ${var.vmid} --mp${idx} ${mp.host_path},mp=${mp.container_path}"],
+      # Start the container.
       ["pct start ${var.vmid} || true"],
     )
   }
