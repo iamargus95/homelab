@@ -177,9 +177,9 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 |--------------------|---------------------------|-----------------|
 | pve1               | `100.68.132.46`           | pve1 (host)     |
 | pve2               | `100.114.157.124`         | pve2 (host)     |
-| jellyfin-1         | (assigned on first join)  | CT 101          |
-| transmission-1     | (assigned on first join)  | CT 102          |
-| immich-1           | (assigned on first join)  | CT 103          |
+| jellyfin-1         | `100.100.253.127`         | CT 101          |
+| transmission-1     | `100.125.84.44`           | CT 102          |
+| immich-1           | `<IMMICH_TAILSCALE_IP>`   | CT 103 (fill in after first deploy) |
 
 > Tailscale IPs are in the 100.64.0.0/10 CGNAT range and are only reachable from inside this tailnet — not from the public internet. Container IPs are assigned on first `tailscale up` and stable thereafter.
 

@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2026-04-08T00:00:00.000Z" agent="Claude" version="24.0.0" type="device">
+<mxfile host="app.diagrams.net" modified="2026-04-19T00:00:00.000Z" agent="Claude" version="24.0.0" type="device">
   <diagram id="homelab-architecture" name="Homelab Architecture">
     <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
@@ -7,7 +7,7 @@
 
         <!-- Cluster -->
         <mxCell id="cluster" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;dashed=1;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
-          <mxGeometry x="40" y="30" width="1020" height="680" as="geometry"/>
+          <mxGeometry x="40" y="30" width="1020" height="710" as="geometry"/>
         </mxCell>
         <mxCell id="cluster-label" value="&lt;b&gt;pve-cluster&lt;/b&gt;&lt;br&gt;Proxmox VE 8.4.17 &amp;nbsp;|&amp;nbsp; 192.168.1.0/24" style="text;html=1;align=center;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=14;" vertex="1" parent="1">
           <mxGeometry x="370" y="40" width="310" height="40" as="geometry"/>
@@ -15,7 +15,7 @@
 
         <!-- pve1 node -->
         <mxCell id="pve1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;arcSize=8;" vertex="1" parent="1">
-          <mxGeometry x="60" y="100" width="470" height="590" as="geometry"/>
+          <mxGeometry x="60" y="100" width="470" height="620" as="geometry"/>
         </mxCell>
         <mxCell id="pve1-label" value="&lt;b style='font-size:14px'&gt;pve1&lt;/b&gt;&lt;br&gt;192.168.1.36" style="text;html=1;align=center;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="230" y="108" width="110" height="40" as="geometry"/>
@@ -23,22 +23,27 @@
 
         <!-- pve1 hardware -->
         <mxCell id="pve1-hw" value="&lt;b&gt;Hardware&lt;/b&gt;&lt;br&gt;Intel i5-6500T (4C) &amp;nbsp;|&amp;nbsp; 15.52 GiB RAM&lt;br&gt;NVMe 256 GB (OS) &amp;nbsp;|&amp;nbsp; HDD 500 GB (ZFS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="90" y="600" width="410" height="70" as="geometry"/>
+          <mxGeometry x="90" y="630" width="410" height="70" as="geometry"/>
         </mxCell>
 
         <!-- Jellyfin container -->
-        <mxCell id="jellyfin" value="&lt;b style='font-size:13px'&gt;CT 101: jellyfin&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 10 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Media streaming server&lt;br&gt;Intel iGPU passthrough for&lt;br&gt;hardware transcoding&lt;br&gt;&lt;br&gt;&lt;i&gt;HTTPS: 8920&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+        <mxCell id="jellyfin" value="&lt;b style='font-size:13px'&gt;CT 101: jellyfin&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 10 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Media streaming server&lt;br&gt;Intel iGPU passthrough for&lt;br&gt;hardware transcoding&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 8096 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
           <mxGeometry x="90" y="160" width="200" height="190" as="geometry"/>
         </mxCell>
 
-        <!-- Mediastack container -->
-        <mxCell id="transmission" value="&lt;b style='font-size:13px'&gt;CT 102: transmission&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 15 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Transmission only (BT client)&lt;br&gt;&lt;br&gt;&lt;i&gt;TUN device (VPN)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+        <!-- Transmission container -->
+        <mxCell id="transmission" value="&lt;b style='font-size:13px'&gt;CT 102: transmission&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 15 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Transmission (BT client)&lt;br&gt;Downloads to shared media&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 9091 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
           <mxGeometry x="310" y="160" width="200" height="190" as="geometry"/>
         </mxCell>
 
+        <!-- Download flow -->
+        <mxCell id="dl-flow" value="downloads media" style="endArrow=classic;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;fontSize=10;fontStyle=2;" edge="1" parent="1" source="transmission" target="jellyfin">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
         <!-- Shared media storage -->
-        <mxCell id="media-storage" value="&lt;b&gt;/zfs-pve-1/media&lt;/b&gt;&lt;br&gt;Shared ZFS Dataset" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="195" y="420" width="200" height="80" as="geometry"/>
+        <mxCell id="media-storage" value="&lt;b&gt;/zfs-pve-1/media&lt;/b&gt;&lt;br&gt;200 GB ZFS Reservation" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="390" width="185" height="75" as="geometry"/>
         </mxCell>
 
         <!-- Mount arrows -->
@@ -49,14 +54,35 @@
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
-        <!-- Mediastack internal arrow -->
-        <mxCell id="arr-flow" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;" edge="1" parent="1" source="jellyfin" target="transmission">
+        <!-- AdGuard container (pve1) -->
+        <mxCell id="adguard" value="&lt;b style='font-size:13px'&gt;CT 100: adguard&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 1 Core &amp;nbsp;|&amp;nbsp; 512 MB RAM&lt;br&gt;Root: 10 GB (local-lvm)&lt;br&gt;&lt;br&gt;AdGuard Home&lt;br&gt;Network-wide DNS &amp;amp;&lt;br&gt;ad/tracker blocking&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 3000&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="90" y="370" width="190" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- Network bridge - pve1 -->
+        <mxCell id="vmbr0-pve1" value="&lt;b&gt;vmbr0&lt;/b&gt; (enp1s0)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="140" y="555" width="310" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Container to bridge connections - pve1 -->
+        <mxCell id="jf-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="jellyfin" target="vmbr0-pve1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ms-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="transmission" target="vmbr0-pve1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="adguard" target="vmbr0-pve1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- DNS query arrow -->
+        <mxCell id="dns-flow" value="DNS queries" style="endArrow=classic;html=1;strokeColor=#b85450;strokeWidth=1;dashed=1;fontSize=10;fontStyle=2;" edge="1" parent="1" source="vmbr0-pve1" target="adguard">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
         <!-- pve2 node -->
         <mxCell id="pve2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;arcSize=8;" vertex="1" parent="1">
-          <mxGeometry x="570" y="100" width="470" height="590" as="geometry"/>
+          <mxGeometry x="570" y="100" width="470" height="620" as="geometry"/>
         </mxCell>
         <mxCell id="pve2-label" value="&lt;b style='font-size:14px'&gt;pve2&lt;/b&gt;&lt;br&gt;192.168.1.41" style="text;html=1;align=center;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="750" y="108" width="110" height="40" as="geometry"/>
@@ -64,32 +90,45 @@
 
         <!-- pve2 hardware -->
         <mxCell id="pve2-hw" value="&lt;b&gt;Hardware&lt;/b&gt;&lt;br&gt;Intel i5-6500T (4C) &amp;nbsp;|&amp;nbsp; 7.65 GiB RAM&lt;br&gt;NVMe 256 GB (OS) &amp;nbsp;|&amp;nbsp; HDD 1 TB (ZFS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="600" y="600" width="410" height="70" as="geometry"/>
+          <mxGeometry x="600" y="630" width="410" height="70" as="geometry"/>
         </mxCell>
 
-        <!-- AdGuard container -->
-        <mxCell id="adguard" value="&lt;b style='font-size:13px'&gt;CT 100: adguard&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Debian &amp;nbsp;|&amp;nbsp; 1 Core &amp;nbsp;|&amp;nbsp; 512 MB RAM&lt;br&gt;Root: 2 GB (zfs-pve-2)&lt;br&gt;&lt;br&gt;AdGuard Home&lt;br&gt;Network-wide DNS &amp;amp;&lt;br&gt;ad/tracker blocking&lt;br&gt;&lt;br&gt;&lt;i&gt;Tags: adblock, community-script&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
-          <mxGeometry x="700" y="160" width="220" height="190" as="geometry"/>
+        <!-- Immich container -->
+        <mxCell id="immich" value="&lt;b style='font-size:13px'&gt;CT 103: immich&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 4 Cores &amp;nbsp;|&amp;nbsp; 4 GiB RAM&lt;br&gt;Root: 20 GB (zfs-pve-2)&lt;br&gt;&lt;br&gt;Immich photo management&lt;br&gt;Docker-in-LXC (nesting)&lt;br&gt;PostgreSQL &amp;middot; Redis &amp;middot; ML&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 2283 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="600" y="160" width="390" height="210" as="geometry"/>
         </mxCell>
 
-        <!-- Network bridge - pve1 -->
-        <mxCell id="vmbr0-pve1" value="&lt;b&gt;vmbr0&lt;/b&gt; (enp1s0)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="140" y="530" width="310" height="30" as="geometry"/>
+        <!-- Immich ZFS storage -->
+        <mxCell id="immich-storage" value="&lt;b&gt;/zfs-pve-2/immich&lt;/b&gt;&lt;br&gt;100 GB ZFS Reservation" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="695" y="395" width="200" height="75" as="geometry"/>
+        </mxCell>
+
+        <!-- Immich mount arrow -->
+        <mxCell id="immich-mount" value="/data" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="immich" target="immich-storage">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Immich backup dataset (pve1) -->
+        <mxCell id="immich-backup" value="&lt;b&gt;/zfs-pve-1/immich-backup&lt;/b&gt;&lt;br&gt;Cross-node backup (ZFS recv)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#9673a6;strokeWidth=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="295" y="480" width="185" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- Nightly backup arrow (pve2 → pve1 via Tailscale) -->
+        <mxCell id="backup-flow" value="ZFS send @ 03:00 IST" style="endArrow=classic;html=1;strokeColor=#9673a6;strokeWidth=2;dashed=1;fontSize=10;fontStyle=2;" edge="1" parent="1" source="immich-storage" target="immich-backup">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="550" y="432"/>
+            </Array>
+          </mxGeometry>
         </mxCell>
 
         <!-- Network bridge - pve2 -->
         <mxCell id="vmbr0-pve2" value="&lt;b&gt;vmbr0&lt;/b&gt; (enp1s0)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="650" y="530" width="310" height="30" as="geometry"/>
+          <mxGeometry x="650" y="555" width="310" height="30" as="geometry"/>
         </mxCell>
 
-        <!-- Container to bridge connections -->
-        <mxCell id="jf-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="jellyfin" target="vmbr0-pve1">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="ms-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="transmission" target="vmbr0-pve1">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="ag-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="adguard" target="vmbr0-pve2">
+        <!-- Container to bridge connections - pve2 -->
+        <mxCell id="immich-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="immich" target="vmbr0-pve2">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
@@ -98,39 +137,28 @@
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
-        <!-- DNS arrow from network to adguard -->
-        <mxCell id="dns-flow" value="DNS queries" style="endArrow=classic;html=1;strokeColor=#b85450;strokeWidth=1;dashed=1;fontSize=10;fontStyle=2;" edge="1" parent="1" source="vmbr0-pve1" target="adguard">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="550" y="480"/>
-              <mxPoint x="680" y="350"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
         <!-- Gateway -->
         <mxCell id="gateway" value="&lt;b&gt;Gateway&lt;/b&gt;&lt;br&gt;192.168.1.1" style="shape=mxgraph.cisco.routers.router;html=1;fillColor=#036897;strokeColor=#ffffff;fontColor=#ffffff;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontStyle=0;sketch=0;" vertex="1" parent="1">
-          <mxGeometry x="510" y="740" width="50" height="40" as="geometry"/>
+          <mxGeometry x="510" y="790" width="50" height="40" as="geometry"/>
         </mxCell>
 
         <!-- Gateway connections -->
         <mxCell id="gw-pve1" value="" style="endArrow=none;html=1;strokeColor=#036897;strokeWidth=2;" edge="1" parent="1" source="vmbr0-pve1" target="gateway">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="295" y="740"/>
+              <mxPoint x="295" y="790"/>
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="gw-pve2" value="" style="endArrow=none;html=1;strokeColor=#036897;strokeWidth=2;" edge="1" parent="1" source="vmbr0-pve2" target="gateway">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="805" y="740"/>
+              <mxPoint x="805" y="790"/>
             </Array>
           </mxGeometry>
         </mxCell>
 
       </root>
-    <!-- TODO(human): open in draw.io to visually (1) move AdGuard from pve2 to pve1, (2) add a CT 103 Immich box on the pve2 side, (3) draw a backup arrow pve2 immich -> pve1 immich-backup, labeled "ZFS send @ 03:00 IST via Tailscale". -->
     </mxGraphModel>
   </diagram>
 </mxfile>
