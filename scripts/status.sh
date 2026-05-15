@@ -1,6 +1,6 @@
 #!/bin/bash
 # List all homelab services with their IPs and ports.
-# Queries each Tailscale-enabled container for its LAN IP and checks service ports.
+# Queries Proxmox for each container's IPs and checks service ports from the host.
 #
 # Usage: PVE1_HOST=<pve1-tailscale-ip> PVE2_HOST=<pve2-tailscale-ip> ./scripts/status.sh
 #
@@ -14,7 +14,7 @@ PVE2_TS="${PVE2_HOST:?Set PVE2_HOST to the Tailscale IP of pve2}"
 
 # --- Container definitions: name|vmid|pve_host|services (service:kind:port,...) ---
 CONTAINERS=(
-  "adguard|100|${PVE1_TS}|AdGuard Home:http:3000,DNS:dns:53"
+  "adguard|100|${PVE1_TS}|AdGuard Home:http:80,DNS:dns:53"
   "immich|103|${PVE2_TS}|Immich:http:2283"
 )
 

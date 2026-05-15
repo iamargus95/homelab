@@ -78,7 +78,7 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 
 - **Storage:** Root disk on `local-lvm` (NVMe on pve1)
 - **Network:** DHCP on `vmbr0`
-- **Port:** `3000` (web UI)
+- **Port:** `80` (web UI)
 
 ### Photos / Immich (pve2)
 
@@ -288,7 +288,7 @@ All phases are idempotent and safe to re-run.
 
 ## Status
 
-`scripts/status.sh` reports each container's LAN IP, Tailscale IP, and which service ports are listening. It SSHes to the Proxmox host and runs `pct exec` against the container, so the host must be reachable on Tailscale for any of its containers to be inspected.
+`scripts/status.sh` reports each container's LAN IP, Tailscale IP, and which service ports are listening. It SSHes to the Proxmox host and checks container IPs and service ports from the host, so it still works when container exec is slow or unhealthy.
 
 Tailscale IPs for `pve1` and `pve2` live in `scripts/status.env`. Source it before running:
 
@@ -305,8 +305,8 @@ Sample output (run 2026-04-25, both nodes down — pve2 offline on Tailscale, pv
   adguard        CT 100
   LAN: <unavailable>      Tailscale: <none>
   ---
-  [ ] AdGuard Home       http://<unavailable>:3000
-  [ ] DNS                http://<unavailable>:53
+  [ ] AdGuard Home       http://<unavailable>:80
+  [ ] DNS                dns://<unavailable>:53
 
   immich         CT 103
   LAN: <unavailable>      Tailscale: <none>
