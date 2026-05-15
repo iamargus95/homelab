@@ -5,6 +5,7 @@
       - ca-certificates
       - curl
       - git
+      - zstd
     state: present
     update_cache: yes
 
