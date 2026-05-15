@@ -48,9 +48,20 @@
   hosts: pve1
   become: yes
   tasks:
+    - name: Ensure /root/.ssh exists
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
     - name: Authorize pve2 backup key
-      ansible.posix.authorized_key:
-        user: root
-        key: "{{ hostvars['pve2'].pve2_pubkey.content | b64decode }}"
-        comment: "immich-backup@pve2"
+      ansible.builtin.lineinfile:
+        path: /root/.ssh/authorized_keys
+        line: "{{ hostvars['pve2'].pve2_pubkey.content | b64decode | trim }}"
+        create: yes
+        owner: root
+        group: root
+        mode: "0600"
         state: present
