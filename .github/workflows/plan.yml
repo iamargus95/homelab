@@ -13,6 +13,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Wait for Tailscale routes
+        run: |
+          for host in ${{ vars.PVE1_HOST }} ${{ vars.PVE2_HOST }}; do
+            for i in $(seq 1 10); do
+              if tailscale ping -c 1 --timeout 5s "$host" >/dev/null 2>&1; then
+                echo "$host reachable"
+                break
+              fi
+              sleep 2
+            done
+          done
+
       - uses: opentofu/setup-opentofu@v1
 
       - name: Symlink tofu as terraform
