@@ -1,0 +1,12 @@
+---
+- name: Symlink resolv.conf to systemd-resolved runtime config
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
+- name: Restart systemd-resolved after disabling stub listener
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted

@@ -23,20 +23,9 @@
     mode: "0644"
   register: resolved_conf
   when: ansible_facts.services['systemd-resolved.service'] is defined
-
-- name: Symlink resolv.conf to systemd-resolved runtime config
-  ansible.builtin.file:
-    src: /run/systemd/resolve/resolv.conf
-    dest: /etc/resolv.conf
-    state: link
-    force: yes
-  when: resolved_conf is changed
-
-- name: Restart systemd-resolved after disabling stub listener
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: restarted
-  when: resolved_conf is changed
+  notify:
+    - Symlink resolv.conf to systemd-resolved runtime config
+    - Restart systemd-resolved after disabling stub listener
 
 - name: Install AdGuard Home dependencies
   ansible.builtin.apt:
