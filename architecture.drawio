@@ -26,37 +26,9 @@
           <mxGeometry x="90" y="630" width="410" height="70" as="geometry"/>
         </mxCell>
 
-        <!-- Jellyfin container -->
-        <mxCell id="jellyfin" value="&lt;b style='font-size:13px'&gt;CT 101: jellyfin&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 10 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Media streaming server&lt;br&gt;Intel iGPU passthrough for&lt;br&gt;hardware transcoding&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 8096 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
-          <mxGeometry x="90" y="160" width="200" height="190" as="geometry"/>
-        </mxCell>
-
-        <!-- Transmission container -->
-        <mxCell id="transmission" value="&lt;b style='font-size:13px'&gt;CT 102: transmission&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 2 GiB RAM&lt;br&gt;Root: 15 GB (zfs-pve-1)&lt;br&gt;&lt;br&gt;Transmission (BT client)&lt;br&gt;Downloads to shared media&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 9091 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
-          <mxGeometry x="310" y="160" width="200" height="190" as="geometry"/>
-        </mxCell>
-
-        <!-- Download flow -->
-        <mxCell id="dl-flow" value="downloads media" style="endArrow=classic;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;fontSize=10;fontStyle=2;" edge="1" parent="1" source="transmission" target="jellyfin">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-
-        <!-- Shared media storage -->
-        <mxCell id="media-storage" value="&lt;b&gt;/zfs-pve-1/media&lt;/b&gt;&lt;br&gt;200 GB ZFS Reservation" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="295" y="390" width="185" height="75" as="geometry"/>
-        </mxCell>
-
-        <!-- Mount arrows -->
-        <mxCell id="jf-mount" value="/media" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="jellyfin" target="media-storage">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="ms-mount" value="/data" style="endArrow=classic;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=2;fontSize=11;" edge="1" parent="1" source="transmission" target="media-storage">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-
         <!-- AdGuard container (pve1) -->
-        <mxCell id="adguard" value="&lt;b style='font-size:13px'&gt;CT 100: adguard&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 1 Core &amp;nbsp;|&amp;nbsp; 512 MB RAM&lt;br&gt;Root: 10 GB (local-lvm)&lt;br&gt;&lt;br&gt;AdGuard Home&lt;br&gt;Network-wide DNS &amp;amp;&lt;br&gt;ad/tracker blocking&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 3000&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
-          <mxGeometry x="90" y="370" width="190" height="160" as="geometry"/>
+        <mxCell id="adguard" value="&lt;b style='font-size:13px'&gt;CT 100: adguard&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 1 GiB RAM&lt;br&gt;Root: 10 GB (local-lvm)&lt;br&gt;&lt;br&gt;AdGuard Home&lt;br&gt;Network-wide DNS &amp;amp;&lt;br&gt;ad/tracker blocking&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 3000&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="90" y="160" width="190" height="160" as="geometry"/>
         </mxCell>
 
         <!-- Network bridge - pve1 -->
@@ -65,12 +37,6 @@
         </mxCell>
 
         <!-- Container to bridge connections - pve1 -->
-        <mxCell id="jf-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="jellyfin" target="vmbr0-pve1">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="ms-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="transmission" target="vmbr0-pve1">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
         <mxCell id="ag-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="adguard" target="vmbr0-pve1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>

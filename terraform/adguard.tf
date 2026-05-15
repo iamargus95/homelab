@@ -4,8 +4,8 @@ module "adguard" {
   vmid         = 100
   hostname     = "adguard"
   target_node  = "pve1"
-  cores        = 1
-  memory       = 512
+  cores        = 2
+  memory       = 1024
   disk_size    = 10
   storage_pool = "local-lvm"
   template_id  = var.template_id

@@ -71,8 +71,9 @@ echo
 ask_secret "Proxmox API token (root@pam!terraform=...)" PROXMOX_TOKEN
 ask_secret "Container root password" CONTAINER_PASS
 echo
-ask "Transmission username" TRANS_USER "admin"
-ask_secret "Transmission password" TRANS_PASS
+ask_secret "Immich database password" IMMICH_DB_PASS
+ask "Immich admin email" IMMICH_USER "admin@example.com"
+ask_secret "Immich admin password" IMMICH_PASS
 echo
 warn "Tailscale auth key: generate one at https://login.tailscale.com/admin/settings/keys"
 warn "Leave blank to skip (you'll need to run 'tailscale up' manually on each container)"
@@ -115,8 +116,9 @@ if check_overwrite ansible/vault.yml; then
   cat > ansible/vault.yml <<EOF
 vault_container_password: "${CONTAINER_PASS}"
 vault_ts_auth_key: "${TS_AUTH_KEY}"
-vault_transmission_user: "${TRANS_USER}"
-vault_transmission_pass: "${TRANS_PASS}"
+vault_immich_db_password: "${IMMICH_DB_PASS}"
+vault_immich_user: "${IMMICH_USER}"
+vault_immich_pass: "${IMMICH_PASS}"
 EOF
   chmod 600 ansible/vault.yml
 
@@ -147,22 +149,11 @@ BRIDGE="vmbr0"
 PASSWORD="${CONTAINER_PASS}"
 
 # --- IDs ---
-JELLYFIN_ID=101
-MEDIA_ID=102
+ADGUARD_ID=100
+IMMICH_ID=103
 
 # --- Network ---
 DNS_SERVERS="1.1.1.1 8.8.8.8"
-
-# --- Storage Paths ---
-ZFS_POOL="zfs-pve-1"
-MEDIA_DIR="/zfs-pve-1/media"
-
-# --- App Credentials ---
-TRANS_USER="${TRANS_USER}"
-TRANS_PASS="${TRANS_PASS}"
-
-# --- Versioning ---
-FLARE_VER="v3.3.21"
 
 # --- Tailscale ---
 TS_AUTH_KEY="${TS_AUTH_KEY}"

@@ -1,19 +1,3 @@
-output "jellyfin" {
-  description = "Jellyfin container details"
-  value = {
-    id       = module.jellyfin.container_id
-    hostname = module.jellyfin.hostname
-  }
-}
-
-output "transmission" {
-  description = "Transmission container details"
-  value = {
-    id       = module.transmission.container_id
-    hostname = module.transmission.hostname
-  }
-}
-
 output "adguard" {
   description = "AdGuard container details"
   value = {

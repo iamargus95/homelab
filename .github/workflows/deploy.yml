@@ -74,8 +74,6 @@ jobs:
           printf '%s\n' \
             "vault_container_password: \"${{ secrets.CONTAINER_PASSWORD }}\"" \
             "vault_ts_auth_key: \"${{ secrets.TS_AUTH_KEY }}\"" \
-            "vault_transmission_user: \"${{ secrets.TRANSMISSION_USER }}\"" \
-            "vault_transmission_pass: \"${{ secrets.TRANSMISSION_PASS }}\"" \
             "vault_immich_db_password: \"${{ secrets.IMMICH_DB_PASSWORD }}\"" \
             "vault_immich_user: \"${{ secrets.IMMICH_USER }}\"" \
             "vault_immich_pass: \"${{ secrets.IMMICH_PASS }}\"" \
@@ -136,7 +134,7 @@ jobs:
 
       # --- Phase 3: Configuration management (Ansible) ---
       # Run the per-container playbooks in parallel. Each one targets a
-      # different host group (jellyfin, transmission, adguard, immich, pve2),
+      # different host group (adguard, immich, pve2),
       # so there's no shared state to contend for. Output is grouped per
       # playbook via GitHub Actions log groups so they stay readable even
       # though they interleave. Exit non-zero if ANY playbook failed.
@@ -144,7 +142,7 @@ jobs:
         working-directory: ansible
         run: |
           set +e
-          names=(jellyfin transmission adguard immich immich-backup)
+          names=(adguard immich immich-backup)
           pids=()
           mkdir -p /tmp/ansible-logs
           for p in "${names[@]}"; do

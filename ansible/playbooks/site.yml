@@ -1,9 +1,4 @@
 ---
-- name: Configure Jellyfin
-  ansible.builtin.import_playbook: jellyfin.yml
-
-- name: Configure Transmission
-  ansible.builtin.import_playbook: transmission.yml
 
 - name: Configure AdGuard
   ansible.builtin.import_playbook: adguard.yml

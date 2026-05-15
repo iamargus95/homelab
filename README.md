@@ -46,12 +46,12 @@ Each node has three storage backends:
 |----------------|-------|-----------|--------------------------------------|------------|
 | local          | pve1  | Directory | Backups, ISO images, CT templates    | 72.72 GB   |
 | local-lvm      | pve1  | LVM       | VM/CT disks                          | —          |
-| zfs-pve-1      | pve1  | ZFS       | VM/CT disks, shared media            | —          |
+| zfs-pve-1      | pve1  | ZFS       | VM/CT disks, Immich backup           | —          |
 | local          | pve2  | Directory | Backups, ISO images, CT templates    | —          |
 | local-lvm      | pve2  | LVM       | VM/CT disks                          | —          |
 | zfs-pve-2      | pve2  | ZFS       | VM/CT disks                          | —          |
 
-The ZFS pool on pve1 (`zfs-pve-1`) hosts a shared `/zfs-pve-1/media` dataset (with a **200 GB reservation**) bind-mounted into both Jellyfin and Transmission so they share the same media library. pve1 also hosts `zfs-pve-1/immich-backup`, which receives nightly ZFS snapshots from pve2 for cross-node backup.
+The ZFS pool on pve1 (`zfs-pve-1`) hosts `zfs-pve-1/immich-backup`, which receives nightly ZFS snapshots from pve2 for cross-node backup.
 
 The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB reservation**, bind-mounted into the Immich container at `/data`.
 
@@ -68,43 +68,11 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 
 ## Containers
 
-### Media Stack (pve1)
-
-The media stack runs on pve1 and provides automated media management and streaming.
-
-| VMID | Name         | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
-|------|--------------|------|--------|-------|--------|-----------|---------------|
-| 101  | jellyfin     | LXC  | Ubuntu | 2     | 2 GiB  | 10 GB     | Yes           |
-| 102  | transmission | LXC  | Ubuntu | 2     | 2 GiB  | 15 GB     | Yes           |
-
-Both containers are unprivileged with nesting enabled, use DHCP for networking on `vmbr0`, and resolve DNS via `1.1.1.1` and `8.8.8.8`.
-
-#### Jellyfin (CT 101)
-
-Self-hosted media server for streaming movies and TV shows.
-
-- **Media mount:** `/zfs-pve-1/media` → `/media`
-- **GPU passthrough:** Intel iGPU (`/dev/dri/card0`, `/dev/dri/renderD128`) for hardware-accelerated transcoding
-- **TUN device:** `/dev/net/tun` passed through for Tailscale
-- **Port:** `8096` (HTTP)
-
-#### Transmission (CT 102)
-
-Lean BitTorrent-only container (the *arr suite was removed in v2).
-
-| Service          | Port  | Purpose                                         |
-|------------------|-------|--------------------------------------------------|
-| **Transmission** | 9091  | BitTorrent client for downloading media          |
-
-- **Media mount:** `/zfs-pve-1/media` → `/data`
-- **TUN device:** `/dev/net/tun` passed through for Tailscale
-- All services run as `mediauser:mediagroup` (UID/GID 1000, mapped to host 101000)
-
 ### DNS / Ad Blocking (pve1)
 
 | VMID | Name     | Type | OS     | Cores | RAM     | Root Disk | Start on Boot |
 |------|----------|------|--------|-------|---------|-----------|---------------|
-| 100  | adguard  | LXC  | Ubuntu | 1     | 512 MB  | 10 GB     | Yes           |
+| 100  | adguard  | LXC  | Ubuntu | 2     | 1 GiB   | 10 GB     | Yes           |
 
 **AdGuard Home** — Provides DNS-level ad and tracker blocking for the entire network. Relocated from pve2 → pve1 in v2 so pve2 can be a dedicated Immich host. A DHCP reservation is recommended to keep the AdGuard IP stable across reboots; update your router/DHCP server to advertise AdGuard's pve1 IP as the LAN DNS.
 
@@ -177,8 +145,6 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 |--------------------|---------------------------|-----------------|
 | pve1               | `100.68.132.46`           | pve1 (host)     |
 | pve2               | `100.114.157.124`         | pve2 (host)     |
-| jellyfin-1         | `100.100.253.127`         | CT 101          |
-| transmission-1     | `100.125.84.44`           | CT 102          |
 | immich-1           | `<IMMICH_TAILSCALE_IP>`   | CT 103 (fill in after first deploy) |
 
 > Tailscale IPs are in the 100.64.0.0/10 CGNAT range and are only reachable from inside this tailnet — not from the public internet. Container IPs are assigned on first `tailscale up` and stable thereafter.
@@ -202,8 +168,6 @@ homelab/
 │   ├── main.tf                    # Provider config (bpg/proxmox)
 │   ├── variables.tf               # Variable declarations
 │   ├── outputs.tf                 # Container IDs and hostnames
-│   ├── jellyfin.tf                # CT 101 definition
-│   ├── transmission.tf            # CT 102 definition
 │   ├── adguard.tf                 # CT 100 definition (pve1)
 │   ├── immich.tf                  # CT 103 definition (pve2)
 │   ├── terraform.tfvars.example   # Example variables (copy to terraform.tfvars)
@@ -217,21 +181,18 @@ homelab/
 │   ├── playbooks/
 │   │   ├── site.yml               # Master playbook (all containers)
 │   │   ├── host-setup.yml         # ZFS datasets, subuid/subgid on PVE hosts
-│   │   ├── jellyfin.yml           # Jellyfin container config
-│   │   ├── transmission.yml       # Transmission container config
 │   │   ├── adguard.yml            # AdGuard container config
 │   │   ├── adguard-migrate.yml    # One-shot: export AdGuard config before pve2→pve1 move
 │   │   ├── immich.yml             # Immich container config
 │   │   ├── immich-backup.yml      # Install nightly backup cron on pve2
 │   │   └── pve-cross-ssh.yml      # One-shot: pve2→pve1 SSH key for zfs-send
-│   ├── roles/                     # common, jellyfin, transmission, adguard, tailscale, zfs-media, zfs-immich, immich, immich-backup
+│   ├── roles/                     # common, adguard, tailscale, zfs-immich, immich, immich-backup
 │   ├── vault.yml.example          # Example secrets (copy and encrypt with ansible-vault)
 │   └── vault.yml                  # Encrypted secrets (gitignored)
 │
 ├── scripts/
 │   └── deploy.sh                  # Full deploy: host-setup → tofu apply → ansible site.yml
 │
-├── jellyfin.sh                    # Legacy bash setup script (reference only)
 └── architecture.drawio            # Architecture diagram
 ```
 
@@ -266,8 +227,6 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `TS_OAUTH_SECRET` | Tailscale OAuth secret |
 | `TS_AUTH_KEY` | Tailscale auth key for container enrollment |
 | `SSH_PRIVATE_KEY` | SSH private key for Proxmox hosts |
-| `TRANSMISSION_USER` | Transmission RPC username |
-| `TRANSMISSION_PASS` | Transmission RPC password |
 | `IMMICH_DB_PASSWORD` | Password for Immich's internal PostgreSQL (alphanumeric only, long random string) |
 | `IMMICH_USER` | Admin email used to sign into Immich (e.g. `you@example.com`) |
 | `IMMICH_PASS` | Admin password for the Immich web UI |
@@ -294,20 +253,6 @@ The `tf-state` branch is created automatically on the first deploy. It stores th
 2. Enter the Tailscale IPs: `pve1_host=100.68.132.46`, `pve2_host=100.114.157.124`.
 3. (If `production` environment gate is configured) Approve the run.
 4. Watch logs. Expected phases: host-setup → cross-ssh → tofu init → tofu apply → site.yml.
-
-#### One-time v2 migration (run locally BEFORE the first GitHub Actions deploy of this branch)
-
-This branch renames CT 102 in state and destroys/recreates CT 100 (AdGuard). The automated workflow doesn't know about either, so do these **once**, locally, before triggering `deploy.yml`:
-
-```bash
-# 1. Export AdGuard config from the live pve2 CT 100 (produces backups/adguard-config/AdGuardHome.yaml)
-cd ansible && ansible-playbook -i inventory/hosts.yml playbooks/adguard-migrate.yml && cd ..
-
-# 2. Rename module.mediastack -> module.transmission in the tf-state branch
-GITHUB_TOKEN=<token> ./scripts/migrate-state.sh
-```
-
-Then trigger the GitHub Actions deploy as above. On subsequent deploys, skip the migration step — the workflow handles the normal flow.
 
 ## Local Deployment
 
@@ -340,6 +285,39 @@ The deploy script runs three phases:
 3. **Configuration** (Ansible) — installs and configures all software inside containers
 
 All phases are idempotent and safe to re-run.
+
+## Status
+
+`scripts/status.sh` reports each container's LAN IP, Tailscale IP, and which service ports are listening. It SSHes to the Proxmox host and runs `pct exec` against the container, so the host must be reachable on Tailscale for any of its containers to be inspected.
+
+Tailscale IPs for `pve1` and `pve2` live in `scripts/status.env`. Source it before running:
+
+```bash
+source scripts/status.env && ./scripts/status.sh
+```
+
+Sample output (run 2026-04-25, both nodes down — pve2 offline on Tailscale, pve1 containers stopped):
+
+```
+  Homelab Service Status
+  ----------------------------------------------------------------------
+
+  adguard        CT 100
+  LAN: <unavailable>      Tailscale: <none>
+  ---
+  [ ] AdGuard Home       http://<unavailable>:3000
+  [ ] DNS                http://<unavailable>:53
+
+  immich         CT 103
+  LAN: <unavailable>      Tailscale: <none>
+  ---
+  [ ] Immich             http://<unavailable>:2283
+
+  ----------------------------------------------------------------------
+  [*] = port listening    [ ] = port not listening
+```
+
+`[*]` next to a service means the port is bound and accepting connections; `[ ]` means the container is up but the service isn't listening (or the container/host is unreachable, in which case `LAN`/`Tailscale` will also be `<unavailable>`/`<none>`).
 
 ## Architecture
 

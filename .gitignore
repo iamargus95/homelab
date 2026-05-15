@@ -11,6 +11,9 @@
 *.sln.docstates
 *.env
 env.local.secrets.sh
+scripts/status.env
+.claude/
+.codex/
 
 # Terraform
 .terraform/

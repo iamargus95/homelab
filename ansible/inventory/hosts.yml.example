@@ -6,7 +6,6 @@ all:
           ansible_host: <PVE1_TAILSCALE_IP>
           ansible_user: root
           zfs_pool: zfs-pve-1
-          media_dir: /zfs-pve-1/media
         pve2:
           ansible_host: <PVE2_TAILSCALE_IP>
           ansible_user: root
@@ -18,18 +17,6 @@ all:
         ansible_connection: community.proxmox.proxmox_pct_remote
         ansible_user: root
       children:
-        jellyfin:
-          hosts:
-            ct101:
-              ansible_host: <PVE1_TAILSCALE_IP>
-              proxmox_vmid: 101
-
-        transmission:
-          hosts:
-            ct102:
-              ansible_host: <PVE1_TAILSCALE_IP>
-              proxmox_vmid: 102
-
         adguard:
           hosts:
             ct100:
