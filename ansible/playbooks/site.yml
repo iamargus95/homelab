@@ -3,6 +3,9 @@
 - name: Configure AdGuard
   ansible.builtin.import_playbook: adguard.yml
 
+- name: Configure Ollama + Hermes Agent
+  ansible.builtin.import_playbook: ollama.yml
+
 - name: Configure Immich
   ansible.builtin.import_playbook: immich.yml
 

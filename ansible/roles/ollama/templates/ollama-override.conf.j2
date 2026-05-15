@@ -1,0 +1,8 @@
+[Service]
+Environment="OLLAMA_HOST={{ ollama_host }}"
+Environment="OLLAMA_NUM_PARALLEL={{ ollama_num_parallel }}"
+Environment="OLLAMA_MAX_LOADED_MODELS={{ ollama_max_loaded_models }}"
+Environment="OLLAMA_CONTEXT_LENGTH={{ ollama_context_length }}"
+{% if ollama_no_cloud | default(false) %}
+Environment="OLLAMA_NO_CLOUD=1"
+{% endif %}

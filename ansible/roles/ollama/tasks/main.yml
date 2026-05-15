@@ -1,0 +1,90 @@
+---
+- name: Install base dependencies for Ollama and Hermes Agent
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+    state: present
+    update_cache: yes
+
+- name: Check if Ollama is already installed
+  ansible.builtin.command: /usr/local/bin/ollama --version
+  register: ollama_version
+  changed_when: false
+  failed_when: false
+
+- name: Install Ollama
+  ansible.builtin.shell: curl -fsSL https://ollama.com/install.sh | sh
+  when: ollama_version.rc != 0
+
+- name: Ensure systemd override directory exists for Ollama
+  ansible.builtin.file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Ollama service for CPU-only homelab usage
+  ansible.builtin.template:
+    src: ollama-override.conf.j2
+    dest: /etc/systemd/system/ollama.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart ollama
+
+- name: Ensure Ollama service is enabled and running
+  ansible.builtin.systemd:
+    name: ollama
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for Ollama API to become ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ ollama_port }}/api/tags"
+    status_code: 200
+  register: ollama_ping
+  until: ollama_ping.status is defined and ollama_ping.status == 200
+  retries: 20
+  delay: 3
+
+- name: Check whether default Ollama model is present
+  ansible.builtin.command: "ollama show {{ ollama_model }}"
+  register: ollama_model_check
+  changed_when: false
+  failed_when: false
+
+- name: Pull default Ollama model
+  ansible.builtin.command: "ollama pull {{ ollama_model }}"
+  when: ollama_model_check.rc != 0
+  register: ollama_pull
+  retries: 3
+  delay: 5
+  until: ollama_pull.rc == 0
+
+- name: Check if Hermes Agent is already installed
+  ansible.builtin.command: /usr/local/bin/hermes --version
+  register: hermes_version
+  changed_when: false
+  failed_when: false
+
+- name: Install Hermes Agent (non-interactive)
+  ansible.builtin.shell: |
+    curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh \
+      | bash -s -- --skip-setup --skip-browser
+  when: hermes_version.rc != 0
+
+- name: Configure Hermes to use local Ollama endpoint
+  ansible.builtin.command: "{{ item }}"
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+  loop:
+    - "/usr/local/bin/hermes config set model.provider custom"
+    - "/usr/local/bin/hermes config set model.base_url {{ hermes_ollama_base_url }}"
+    - "/usr/local/bin/hermes config set model.default {{ ollama_model }}"
+    - "/usr/local/bin/hermes config set model.context_length {{ ollama_context_length }}"

@@ -13,3 +13,11 @@ output "immich" {
     hostname = module.immich.hostname
   }
 }
+
+output "ollama" {
+  description = "Ollama container details"
+  value = {
+    id       = module.ollama.container_id
+    hostname = module.ollama.hostname
+  }
+}

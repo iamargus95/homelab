@@ -80,6 +80,18 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 - **Network:** DHCP on `vmbr0`
 - **Port:** `80` (web UI)
 
+### AI Assistant / Ollama + Hermes Agent (pve1)
+
+| VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
+|------|---------|------|--------|-------|--------|-----------|---------------|
+| 104  | ollama  | LXC  | Ubuntu | 2     | 10 GiB | 80 GB     | Yes           |
+
+**Ollama + Hermes Agent** — local CPU-only AI inference endpoint and personal assistant runtime. The container pre-pulls `hermes3:3b` and configures Hermes Agent against the local Ollama OpenAI-compatible API (`http://127.0.0.1:11434/v1`).
+
+- **Storage:** Root disk on `local-lvm` (NVMe on pve1)
+- **Network:** DHCP on `vmbr0`, plus Tailscale for remote access.
+- **Port:** `11434` (Ollama API)
+
 ### Photos / Immich (pve2)
 
 | VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
@@ -169,6 +181,7 @@ homelab/
 │   ├── variables.tf               # Variable declarations
 │   ├── outputs.tf                 # Container IDs and hostnames
 │   ├── adguard.tf                 # CT 100 definition (pve1)
+│   ├── ollama.tf                  # CT 104 definition (pve1)
 │   ├── immich.tf                  # CT 103 definition (pve2)
 │   ├── terraform.tfvars.example   # Example variables (copy to terraform.tfvars)
 │   └── modules/lxc-container/     # Reusable LXC container module
@@ -182,11 +195,12 @@ homelab/
 │   │   ├── site.yml               # Master playbook (all containers)
 │   │   ├── host-setup.yml         # ZFS datasets, subuid/subgid on PVE hosts
 │   │   ├── adguard.yml            # AdGuard container config
+│   │   ├── ollama.yml             # Ollama + Hermes Agent container config
 │   │   ├── adguard-migrate.yml    # One-shot: export AdGuard config before pve2→pve1 move
 │   │   ├── immich.yml             # Immich container config
 │   │   ├── immich-backup.yml      # Install nightly backup cron on pve2
 │   │   └── pve-cross-ssh.yml      # One-shot: pve2→pve1 SSH key for zfs-send
-│   ├── roles/                     # common, adguard, tailscale, zfs-immich, immich, immich-backup
+│   ├── roles/                     # common, adguard, ollama, tailscale, zfs-immich, immich, immich-backup
 │   ├── vault.yml.example          # Example secrets (copy and encrypt with ansible-vault)
 │   └── vault.yml                  # Encrypted secrets (gitignored)
 │
@@ -307,6 +321,11 @@ Sample output (run 2026-04-25, both nodes down — pve2 offline on Tailscale, pv
   ---
   [ ] AdGuard Home       http://<unavailable>:80
   [ ] DNS                dns://<unavailable>:53
+
+  ollama         CT 104
+  LAN: <unavailable>      Tailscale: <none>
+  ---
+  [ ] Ollama API         http://<unavailable>:11434
 
   immich         CT 103
   LAN: <unavailable>      Tailscale: <none>
