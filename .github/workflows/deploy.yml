@@ -142,7 +142,7 @@ jobs:
         working-directory: ansible
         run: |
           set +e
-          names=(adguard immich immich-backup)
+          names=(adguard ollama immich immich-backup)
           pids=()
           mkdir -p /tmp/ansible-logs
           for p in "${names[@]}"; do
