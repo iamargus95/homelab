@@ -84,7 +84,7 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 
 | VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
 |------|---------|------|--------|-------|--------|-----------|---------------|
-| 104  | ollama  | LXC  | Ubuntu | 2     | 10 GiB | 80 GB     | Yes           |
+| 104  | ollama  | LXC  | Ubuntu | 2     | 10 GiB | 120 GB    | Yes           |
 
 **Ollama + Hermes Agent** — local CPU-only AI inference endpoint and personal assistant runtime. The container pre-pulls `hermes3:3b` and configures Hermes Agent against the local Ollama OpenAI-compatible API (`http://127.0.0.1:11434/v1`).
 

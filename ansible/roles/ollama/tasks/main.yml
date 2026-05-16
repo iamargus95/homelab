@@ -89,3 +89,22 @@
     - "/usr/local/bin/hermes config set model.base_url {{ hermes_ollama_base_url }}"
     - "/usr/local/bin/hermes config set model.default {{ ollama_model }}"
     - "/usr/local/bin/hermes config set model.context_length {{ ollama_context_length }}"
+
+- name: Ensure Hermes messaging env keys are present
+  ansible.builtin.lineinfile:
+    path: "{{ hermes_home }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: yes
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - key: WHATSAPP_ENABLED
+      value: "{{ 'true' if hermes_whatsapp_enabled | bool else 'false' }}"
+    - key: DISCORD_BOT_TOKEN
+      value: "{{ hermes_discord_bot_token | default('') }}"
+    - key: DISCORD_ALLOWED_USERS
+      value: "{{ hermes_discord_allowed_users | default('') }}"
+    - key: WHATSAPP_ALLOWED_USERS
+      value: "{{ hermes_whatsapp_allowed_users | default('') }}"

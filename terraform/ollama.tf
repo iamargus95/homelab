@@ -6,7 +6,7 @@ module "ollama" {
   target_node  = "pve1"
   cores        = 2
   memory       = 10240
-  disk_size    = 80
+  disk_size    = 120
   storage_pool = "local-lvm"
   template_id  = var.template_id
   bridge       = var.bridge
