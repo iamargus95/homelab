@@ -29,7 +29,7 @@ all:
               ansible_host: <PVE2_TAILSCALE_IP>
               proxmox_vmid: 103
 
-        ollama:
+        hermes:
           hosts:
             ct104:
               ansible_host: <PVE1_TAILSCALE_IP>

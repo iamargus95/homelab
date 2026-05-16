@@ -1,12 +1,12 @@
-module "ollama" {
+module "hermes" {
   source = "./modules/lxc-container"
 
   vmid         = 104
-  hostname     = "ollama"
+  hostname     = "hermes"
   target_node  = "pve1"
   cores        = 2
-  memory       = 10240
-  disk_size    = 120
+  memory       = 4096
+  disk_size    = 32
   storage_pool = "local-lvm"
   template_id  = var.template_id
   bridge       = var.bridge

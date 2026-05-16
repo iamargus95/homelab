@@ -14,10 +14,10 @@ output "immich" {
   }
 }
 
-output "ollama" {
-  description = "Ollama container details"
+output "hermes" {
+  description = "Hermes container details"
   value = {
-    id       = module.ollama.container_id
-    hostname = module.ollama.hostname
+    id       = module.hermes.container_id
+    hostname = module.hermes.hostname
   }
 }

@@ -15,7 +15,7 @@ PVE2_TS="${PVE2_HOST:?Set PVE2_HOST to the Tailscale IP of pve2}"
 # --- Container definitions: name|vmid|pve_host|services (service:kind:port,...) ---
 CONTAINERS=(
   "adguard|100|${PVE1_TS}|AdGuard Home:http:80,DNS:dns:53"
-  "ollama|104|${PVE1_TS}|Ollama API:http:11434"
+  "hermes|104|${PVE1_TS}|Hermes API:http:8642"
   "immich|103|${PVE2_TS}|Immich:http:2283"
 )
 

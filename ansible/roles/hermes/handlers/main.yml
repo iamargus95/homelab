@@ -3,7 +3,7 @@
   ansible.builtin.systemd:
     daemon_reload: yes
 
-- name: restart ollama
+- name: restart hermes gateway
   ansible.builtin.systemd:
-    name: ollama
+    name: hermes-gateway
     state: restarted
