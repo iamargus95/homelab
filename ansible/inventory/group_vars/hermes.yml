@@ -1,0 +1,27 @@
+# Hermes Agent container settings
+
+hermes_home: /root/.hermes
+
+# Hermes Agent API server. Expose this only on Tailscale/LAN, never directly to
+# the public internet: the API can access Hermes' full toolset.
+hermes_api_server_enabled: true
+# Safety default:
+# - with API key present, expose on LAN/Tailscale
+# - without API key, bind localhost only so deploys do not fail insecurely
+hermes_api_server_host: "{{ '0.0.0.0' if (vault_hermes_api_server_key | default('') | length) > 0 else '127.0.0.1' }}"
+hermes_api_server_port: 8642
+hermes_api_server_model_name: "homelab-hermes"
+hermes_api_server_key: "{{ vault_hermes_api_server_key | default('') }}"
+hermes_api_server_cors_origins: ""
+
+# Optional model provider configuration. Set these in ansible/vault.yml when
+# you want the playbook to configure Hermes non-interactively.
+hermes_model_provider: "{{ vault_hermes_model_provider | default('') }}"
+hermes_model_name: "{{ vault_hermes_model_name | default('') }}"
+hermes_model_base_url: "{{ vault_hermes_model_base_url | default('') }}"
+hermes_model_context_length: 65536
+
+hermes_whatsapp_enabled: true
+hermes_discord_bot_token: "{{ vault_hermes_discord_bot_token | default('') }}"
+hermes_discord_allowed_users: "{{ vault_hermes_discord_allowed_users | default('') }}"
+hermes_whatsapp_allowed_users: "{{ vault_hermes_whatsapp_allowed_users | default('') }}"

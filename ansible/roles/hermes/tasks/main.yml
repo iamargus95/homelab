@@ -1,0 +1,119 @@
+---
+- name: Install base dependencies for Hermes Agent
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+      - ripgrep
+      - zstd
+    state: present
+    update_cache: yes
+
+- name: Require API key when Hermes API server binds beyond localhost
+  ansible.builtin.assert:
+    that:
+      - hermes_api_server_key | length > 0
+    fail_msg: "Set vault_hermes_api_server_key in ansible/vault.yml before exposing Hermes on {{ hermes_api_server_host }}."
+  when:
+    - hermes_api_server_enabled | bool
+    - hermes_api_server_host not in ["127.0.0.1", "localhost", "::1"]
+
+- name: Check if Hermes Agent is already installed
+  ansible.builtin.command: /usr/local/bin/hermes --version
+  register: hermes_version
+  changed_when: false
+  failed_when: false
+
+- name: Install Hermes Agent non-interactively
+  ansible.builtin.shell: |
+    curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh \
+      | bash -s -- --skip-setup --skip-browser
+  when: hermes_version.rc != 0
+  changed_when: hermes_version.rc != 0
+
+- name: Ensure Hermes home exists
+  ansible.builtin.file:
+    path: "{{ hermes_home }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Configure Hermes model provider
+  ansible.builtin.command: "/usr/local/bin/hermes config set model.provider {{ hermes_model_provider }}"
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+  when: hermes_model_provider | length > 0
+  changed_when: false
+
+- name: Configure Hermes model name
+  ansible.builtin.command: "/usr/local/bin/hermes config set model.model {{ hermes_model_name }}"
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+  when: hermes_model_name | length > 0
+  changed_when: false
+
+- name: Configure Hermes model base URL
+  ansible.builtin.command: "/usr/local/bin/hermes config set model.base_url {{ hermes_model_base_url }}"
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+  when: hermes_model_base_url | length > 0
+  changed_when: false
+
+- name: Configure Hermes model context length
+  ansible.builtin.command: "/usr/local/bin/hermes config set model.context_length {{ hermes_model_context_length }}"
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+  when: hermes_model_context_length is defined
+  changed_when: false
+
+- name: Ensure Hermes environment keys are present
+  ansible.builtin.lineinfile:
+    path: "{{ hermes_home }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: yes
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - key: API_SERVER_ENABLED
+      value: "{{ 'true' if hermes_api_server_enabled | bool else 'false' }}"
+    - key: API_SERVER_HOST
+      value: "{{ hermes_api_server_host }}"
+    - key: API_SERVER_PORT
+      value: "{{ hermes_api_server_port }}"
+    - key: API_SERVER_KEY
+      value: "{{ hermes_api_server_key }}"
+    - key: API_SERVER_MODEL_NAME
+      value: "{{ hermes_api_server_model_name }}"
+    - key: API_SERVER_CORS_ORIGINS
+      value: "{{ hermes_api_server_cors_origins }}"
+    - key: WHATSAPP_ENABLED
+      value: "{{ 'true' if hermes_whatsapp_enabled | bool else 'false' }}"
+    - key: DISCORD_BOT_TOKEN
+      value: "{{ hermes_discord_bot_token }}"
+    - key: DISCORD_ALLOWED_USERS
+      value: "{{ hermes_discord_allowed_users }}"
+    - key: WHATSAPP_ALLOWED_USERS
+      value: "{{ hermes_whatsapp_allowed_users }}"
+  notify: restart hermes gateway
+
+- name: Install Hermes gateway systemd service
+  ansible.builtin.template:
+    src: hermes-gateway.service.j2
+    dest: /etc/systemd/system/hermes-gateway.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart hermes gateway
+
+- name: Ensure Hermes gateway is enabled and running
+  ansible.builtin.systemd:
+    name: hermes-gateway
+    state: started
+    enabled: yes
+    daemon_reload: yes

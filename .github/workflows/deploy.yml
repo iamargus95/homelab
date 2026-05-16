@@ -77,6 +77,13 @@ jobs:
             "vault_immich_db_password: \"${{ secrets.IMMICH_DB_PASSWORD }}\"" \
             "vault_immich_user: \"${{ secrets.IMMICH_USER }}\"" \
             "vault_immich_pass: \"${{ secrets.IMMICH_PASS }}\"" \
+            "vault_hermes_api_server_key: \"${{ secrets.HERMES_API_SERVER_KEY }}\"" \
+            "vault_hermes_model_provider: \"${{ secrets.HERMES_MODEL_PROVIDER }}\"" \
+            "vault_hermes_model_name: \"${{ secrets.HERMES_MODEL_NAME }}\"" \
+            "vault_hermes_model_base_url: \"${{ secrets.HERMES_MODEL_BASE_URL }}\"" \
+            "vault_hermes_discord_bot_token: \"${{ secrets.HERMES_DISCORD_BOT_TOKEN }}\"" \
+            "vault_hermes_discord_allowed_users: \"${{ secrets.HERMES_DISCORD_ALLOWED_USERS }}\"" \
+            "vault_hermes_whatsapp_allowed_users: \"${{ secrets.HERMES_WHATSAPP_ALLOWED_USERS }}\"" \
             > vault.yml
 
       - name: Write Ansible inventory
@@ -118,6 +125,15 @@ jobs:
             --state homelab/terraform.tfstate \
             terraform apply -refresh-only -auto-approve -input=false
 
+          if ssh "root@${{ inputs.pve1_host }}" "pct config 104 >/dev/null 2>&1 && ! pct config 104 | grep -q '^hostname: hermes$'"; then
+            ssh "root@${{ inputs.pve1_host }}" "pct stop 104 || true; pct destroy 104 --purge --force"
+            terraform-backend-git git \
+              --repository "https://github.com/${{ github.repository }}.git" \
+              --ref tf-state \
+              --state homelab/terraform.tfstate \
+              terraform apply -refresh-only -auto-approve -input=false
+          fi
+
           terraform-backend-git git \
             --repository "https://github.com/${{ github.repository }}.git" \
             --ref tf-state \
@@ -142,7 +158,7 @@ jobs:
         working-directory: ansible
         run: |
           set +e
-          names=(adguard immich immich-backup)
+          names=(adguard hermes immich immich-backup)
           pids=()
           mkdir -p /tmp/ansible-logs
           for p in "${names[@]}"; do

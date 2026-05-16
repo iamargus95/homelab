@@ -6,3 +6,12 @@ vault_ts_auth_key: "tskey-auth-xxxxx"
 vault_immich_db_password: "changeme-long-random-string"
 vault_immich_user: "admin@example.com"
 vault_immich_pass: "changeme"
+
+# Hermes Agent
+vault_hermes_api_server_key: "changeme-long-random-token"
+vault_hermes_model_provider: "openrouter"
+vault_hermes_model_name: "openai/gpt-4.1"
+vault_hermes_model_base_url: ""
+vault_hermes_discord_bot_token: ""
+vault_hermes_discord_allowed_users: ""
+vault_hermes_whatsapp_allowed_users: ""

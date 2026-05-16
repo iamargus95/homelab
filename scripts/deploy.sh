@@ -32,6 +32,16 @@ echo ""
 echo "==> [2/3] Provisioning containers (OpenTofu)..."
 cd "$ROOT_DIR/terraform"
 tofu init -input=false
+
+PVE1_CUTOVER_HOST="${PVE1_HOST:-${TF_VAR_pve1_ssh_host:-}}"
+if [ -n "$PVE1_CUTOVER_HOST" ]; then
+  if ssh "root@${PVE1_CUTOVER_HOST}" "pct config 104 >/dev/null 2>&1 && ! pct config 104 | grep -q '^hostname: hermes$'"; then
+    echo "Destroying old CT 104 before recreating Hermes..."
+    ssh "root@${PVE1_CUTOVER_HOST}" "pct stop 104 || true; pct destroy 104 --purge --force"
+    tofu apply -refresh-only -auto-approve
+  fi
+fi
+
 tofu apply -auto-approve
 
 # Phase 3: Configuration management

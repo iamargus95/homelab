@@ -2,6 +2,7 @@
 - name: Configure Immich container
   hosts: immich
   become: yes
+  gather_facts: no
   vars_files:
     - ../vault.yml
   roles:

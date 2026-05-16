@@ -13,3 +13,11 @@ output "immich" {
     hostname = module.immich.hostname
   }
 }
+
+output "hermes" {
+  description = "Hermes container details"
+  value = {
+    id       = module.hermes.container_id
+    hostname = module.hermes.hostname
+  }
+}

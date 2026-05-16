@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Agent Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=HERMES_HOME={{ hermes_home }}
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/hermes gateway
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

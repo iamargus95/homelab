@@ -80,6 +80,29 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 - **Network:** DHCP on `vmbr0`
 - **Port:** `80` (web UI)
 
+### AI Assistant / Hermes Agent (pve1)
+
+| VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
+|------|---------|------|--------|-------|--------|-----------|---------------|
+| 104  | hermes  | LXC  | Ubuntu | 2     | 4 GiB  | 32 GB     | Yes           |
+
+**Hermes Agent** — persistent personal assistant runtime with an OpenAI-compatible API gateway for clients across the tailnet. Model provider credentials live in Ansible Vault so the homelab hosts Hermes while inference can use Nous Portal, OpenRouter, OpenAI, or another OpenAI-compatible provider.
+
+- **Storage:** Root disk on `local-lvm` (NVMe on pve1)
+- **Network:** DHCP on `vmbr0`, plus Tailscale for remote access.
+- **Port:** `8642` (Hermes Agent API)
+
+#### Cross-device Hermes workflow
+
+Hermes runs once in CT 104 and exposes `http://hermes:8642/v1` over Tailscale/MagicDNS. Laptops, phones, and other devices should use the same OpenAI-compatible endpoint with `Authorization: Bearer <vault_hermes_api_server_key>`, so conversations, skills, memory, jobs, and messaging integrations stay anchored in the homelab instead of being split across per-device installs.
+
+Recommended client setup:
+
+- Install Tailscale on every trusted device and use MagicDNS (`hermes`) instead of LAN DHCP addresses.
+- Point Open WebUI, LobeChat, ChatBox, scripts, or the OpenAI SDK at `http://hermes:8642/v1`.
+- Keep repo checkouts and editors local on the laptop; let Hermes access remote repos through explicit SSH/GitHub credentials or by cloning selected repos inside the container when you want server-side work.
+- Use Hermes profiles later if you want isolated agents for personal, coding, and automation contexts; each profile can bind a separate port and API key.
+
 ### Photos / Immich (pve2)
 
 | VMID | Name    | Type | OS     | Cores | RAM    | Root Disk | Start on Boot |
@@ -169,6 +192,7 @@ homelab/
 │   ├── variables.tf               # Variable declarations
 │   ├── outputs.tf                 # Container IDs and hostnames
 │   ├── adguard.tf                 # CT 100 definition (pve1)
+│   ├── hermes.tf                  # CT 104 definition (pve1)
 │   ├── immich.tf                  # CT 103 definition (pve2)
 │   ├── terraform.tfvars.example   # Example variables (copy to terraform.tfvars)
 │   └── modules/lxc-container/     # Reusable LXC container module
@@ -182,11 +206,12 @@ homelab/
 │   │   ├── site.yml               # Master playbook (all containers)
 │   │   ├── host-setup.yml         # ZFS datasets, subuid/subgid on PVE hosts
 │   │   ├── adguard.yml            # AdGuard container config
+│   │   ├── hermes.yml             # Hermes Agent container config
 │   │   ├── adguard-migrate.yml    # One-shot: export AdGuard config before pve2→pve1 move
 │   │   ├── immich.yml             # Immich container config
 │   │   ├── immich-backup.yml      # Install nightly backup cron on pve2
 │   │   └── pve-cross-ssh.yml      # One-shot: pve2→pve1 SSH key for zfs-send
-│   ├── roles/                     # common, adguard, tailscale, zfs-immich, immich, immich-backup
+│   ├── roles/                     # common, adguard, hermes, tailscale, zfs-immich, immich, immich-backup
 │   ├── vault.yml.example          # Example secrets (copy and encrypt with ansible-vault)
 │   └── vault.yml                  # Encrypted secrets (gitignored)
 │
@@ -230,6 +255,10 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `IMMICH_DB_PASSWORD` | Password for Immich's internal PostgreSQL (alphanumeric only, long random string) |
 | `IMMICH_USER` | Admin email used to sign into Immich (e.g. `you@example.com`) |
 | `IMMICH_PASS` | Admin password for the Immich web UI |
+| `HERMES_API_SERVER_KEY` | Bearer token for the Hermes Agent API server (required for remote access; if unset, Hermes binds to localhost only) |
+| `HERMES_MODEL_PROVIDER` | Optional Hermes model provider to configure non-interactively |
+| `HERMES_MODEL_NAME` | Optional model name for the selected provider |
+| `HERMES_MODEL_BASE_URL` | Optional base URL for custom OpenAI-compatible providers |
 
 > `GITHUB_TOKEN` is provided automatically by GitHub Actions and is used by terraform-backend-git to read/write state.
 
@@ -286,6 +315,21 @@ The deploy script runs three phases:
 
 All phases are idempotent and safe to re-run.
 
+### One-time Hermes cutover
+
+CT 104 previously hosted a local-model assistant. To guarantee no old assistant files or model layers remain, destroy CT 104 once before applying the Hermes deployment:
+
+```bash
+ssh root@100.68.132.46 "pct stop 104 || true; pct destroy 104 --purge --force"
+cd terraform
+tofu apply -refresh-only
+tofu apply
+cd ../ansible
+ansible-playbook playbooks/hermes.yml --ask-vault-pass
+```
+
+The GitHub Actions deploy workflow performs the same guarded cleanup automatically when CT 104 exists but does not report `hostname: hermes`.
+
 ## Status
 
 `scripts/status.sh` reports each container's LAN IP, Tailscale IP, and which service ports are listening. It SSHes to the Proxmox host and checks container IPs and service ports from the host, so it still works when container exec is slow or unhealthy.
@@ -307,6 +351,11 @@ Sample output (run 2026-04-25, both nodes down — pve2 offline on Tailscale, pv
   ---
   [ ] AdGuard Home       http://<unavailable>:80
   [ ] DNS                dns://<unavailable>:53
+
+  hermes         CT 104
+  LAN: <unavailable>      Tailscale: <none>
+  ---
+  [ ] Hermes API         http://<unavailable>:8642
 
   immich         CT 103
   LAN: <unavailable>      Tailscale: <none>
