@@ -255,7 +255,7 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `IMMICH_DB_PASSWORD` | Password for Immich's internal PostgreSQL (alphanumeric only, long random string) |
 | `IMMICH_USER` | Admin email used to sign into Immich (e.g. `you@example.com`) |
 | `IMMICH_PASS` | Admin password for the Immich web UI |
-| `HERMES_API_SERVER_KEY` | Bearer token for the Hermes Agent API server |
+| `HERMES_API_SERVER_KEY` | Bearer token for the Hermes Agent API server (required for remote access; if unset, Hermes binds to localhost only) |
 | `HERMES_MODEL_PROVIDER` | Optional Hermes model provider to configure non-interactively |
 | `HERMES_MODEL_NAME` | Optional model name for the selected provider |
 | `HERMES_MODEL_BASE_URL` | Optional base URL for custom OpenAI-compatible providers |
