@@ -4,6 +4,13 @@
   args:
     creates: /usr/bin/tailscale
 
+- name: Configure tailscaled for userspace networking in LXC
+  ansible.builtin.lineinfile:
+    path: /etc/default/tailscaled
+    regexp: '^FLAGS='
+    line: 'FLAGS="--tun=userspace-networking"'
+    create: yes
+
 - name: Ensure tailscaled is enabled and running
   ansible.builtin.systemd:
     name: tailscaled
