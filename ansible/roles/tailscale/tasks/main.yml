@@ -4,9 +4,32 @@
   args:
     creates: /usr/bin/tailscale
 
-- name: Authenticate Tailscale
-  ansible.builtin.command: "tailscale up --authkey {{ ts_auth_key }} --accept-routes"
-  when: ts_auth_key is defined and ts_auth_key | length > 0
-  register: ts_result
-  changed_when: ts_result.rc == 0
+- name: Read current Tailscale status
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_before
+  changed_when: false
   failed_when: false
+
+- name: Bring Tailscale up when not connected
+  ansible.builtin.command: "tailscale up --authkey {{ ts_auth_key }} --accept-routes"
+  when:
+    - ts_auth_key is defined
+    - ts_auth_key | length > 0
+    - tailscale_status_before.rc != 0
+      or ((tailscale_status_before.stdout | from_json).BackendState | default('')) != "Running"
+  register: tailscale_up_result
+  changed_when: tailscale_up_result.rc == 0
+
+- name: Read Tailscale status after auth
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_after
+  changed_when: false
+  failed_when: false
+
+- name: Assert Tailscale is connected
+  ansible.builtin.assert:
+    that:
+      - tailscale_status_after.rc == 0
+      - ((tailscale_status_after.stdout | from_json).BackendState | default('')) == "Running"
+      - ((tailscale_status_after.stdout | from_json).Self | default({})).TailscaleIPs | default([]) | length > 0
+    fail_msg: "Tailscale is not connected on this host after configuration."
