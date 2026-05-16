@@ -10,14 +10,24 @@
     state: started
     enabled: yes
 
+- name: Wait for tailscaled socket
+  ansible.builtin.wait_for:
+    path: /run/tailscale/tailscaled.sock
+    state: present
+    timeout: 30
+
 - name: Read current Tailscale status
   ansible.builtin.command: tailscale status --json
+  environment:
+    TS_SOCKET: /run/tailscale/tailscaled.sock
   register: tailscale_status_before
   changed_when: false
   failed_when: false
 
 - name: Bring Tailscale up when not connected
   ansible.builtin.command: "tailscale up --authkey {{ ts_auth_key }} --accept-routes"
+  environment:
+    TS_SOCKET: /run/tailscale/tailscaled.sock
   when:
     - ts_auth_key is defined
     - ts_auth_key | length > 0
@@ -28,6 +38,8 @@
 
 - name: Read Tailscale status after auth
   ansible.builtin.command: tailscale status --json
+  environment:
+    TS_SOCKET: /run/tailscale/tailscaled.sock
   register: tailscale_status_after
   changed_when: false
   failed_when: false
