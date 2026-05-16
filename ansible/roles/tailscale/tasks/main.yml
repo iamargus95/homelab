@@ -4,6 +4,12 @@
   args:
     creates: /usr/bin/tailscale
 
+- name: Ensure tailscaled is enabled and running
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+    enabled: yes
+
 - name: Read current Tailscale status
   ansible.builtin.command: tailscale status --json
   register: tailscale_status_before
