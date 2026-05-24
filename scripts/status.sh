@@ -37,7 +37,14 @@ get_container_ips() {
   local pve_host=$1 vmid=$2
   # Host-side LXC query avoids pct exec hangs in unhealthy containers.
   ssh "${SSH_OPTS[@]}" "root@${pve_host}" \
-    "timeout ${REMOTE_TIMEOUT} lxc-info -n ${vmid} -iH 2>/dev/null" 2>/dev/null
+    "timeout ${REMOTE_TIMEOUT} lxc-info -n ${vmid} -i -H 2>/dev/null" 2>/dev/null
+}
+
+get_container_ts_ip() {
+  local pve_host=$1 vmid=$2
+  ssh "${SSH_OPTS[@]}" "root@${pve_host}" \
+    "timeout ${REMOTE_TIMEOUT} pct exec ${vmid} -- tailscale ip -4 2>/dev/null" 2>/dev/null \
+    | sed -n '1p'
 }
 
 select_lan_ip() {
@@ -90,7 +97,10 @@ for entry in "${CONTAINERS[@]}"; do
 
   container_ips=$(get_container_ips "$pve_host" "$vmid" 2>/dev/null || true)
   lan_ip=$(printf "%s\n" "$container_ips" | select_lan_ip 2>/dev/null || true)
-  ts_ip=$(printf "%s\n" "$container_ips" | select_ts_ip 2>/dev/null || true)
+  ts_ip=$(get_container_ts_ip "$pve_host" "$vmid" 2>/dev/null || true)
+  if [ -z "$ts_ip" ]; then
+    ts_ip=$(printf "%s\n" "$container_ips" | select_ts_ip 2>/dev/null || true)
+  fi
   lan_ip="${lan_ip:-<unavailable>}"
   ts_ip="${ts_ip:-<none>}"
 
