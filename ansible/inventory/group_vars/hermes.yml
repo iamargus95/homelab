@@ -21,7 +21,7 @@ hermes_model_name: "{{ vault_hermes_model_name | default('') }}"
 hermes_model_base_url: "{{ vault_hermes_model_base_url | default('') }}"
 hermes_model_context_length: 65536
 
-hermes_whatsapp_enabled: true
+hermes_whatsapp_enabled: "{{ vault_hermes_whatsapp_enabled | default(false) }}"
 hermes_discord_bot_token: "{{ vault_hermes_discord_bot_token | default('') }}"
 hermes_discord_allowed_users: "{{ vault_hermes_discord_allowed_users | default('') }}"
 hermes_whatsapp_allowed_users: "{{ vault_hermes_whatsapp_allowed_users | default('') }}"

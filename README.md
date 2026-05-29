@@ -94,14 +94,106 @@ The ZFS pool on pve2 (`zfs-pve-2`) hosts `zfs-pve-2/immich` with a **100 GB rese
 
 #### Cross-device Hermes workflow
 
-Hermes runs once in CT 104 and exposes `http://hermes:8642/v1` over Tailscale/MagicDNS. Laptops, phones, and other devices should use the same OpenAI-compatible endpoint with `Authorization: Bearer <vault_hermes_api_server_key>`, so conversations, skills, memory, jobs, and messaging integrations stay anchored in the homelab instead of being split across per-device installs.
+Hermes runs once in CT 104. When `vault_hermes_api_server_key` is set, it exposes `http://hermes:8642/v1` over Tailscale/MagicDNS for OpenAI-compatible clients; without that key it binds the API to localhost only. Discord access does not require the LAN API to be exposed because the Hermes gateway runs inside the container and connects outbound to Discord.
 
 Recommended client setup:
 
 - Install Tailscale on every trusted device and use MagicDNS (`hermes`) instead of LAN DHCP addresses.
-- Point Open WebUI, LobeChat, ChatBox, scripts, or the OpenAI SDK at `http://hermes:8642/v1`.
+- After `vault_hermes_api_server_key` is configured, point Open WebUI, LobeChat, ChatBox, scripts, or the OpenAI SDK at `http://hermes:8642/v1`.
 - Keep repo checkouts and editors local on the laptop; let Hermes access remote repos through explicit SSH/GitHub credentials or by cloning selected repos inside the container when you want server-side work.
 - Use Hermes profiles later if you want isolated agents for personal, coding, and automation contexts; each profile can bind a separate port and API key.
+
+#### Discord personal assistant setup
+
+The preferred setup for this homelab is the current official Hermes path: Nous Portal for model access and Tool Gateway routing, then the Hermes Discord gateway for the always-on assistant. The upstream docs recommend Nous Portal as the fastest supported provider path, and the Discord gateway supports DMs, server channels, file attachments, voice messages, slash commands, per-user authorization, and a home channel for proactive messages.
+
+References:
+
+- [Hermes Quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart/)
+- [Run Hermes Agent with Nous Portal](https://hermes-agent.nousresearch.com/docs/guides/run-hermes-with-nous-portal)
+- [Hermes Discord setup](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/discord/)
+
+Run these commands inside CT 104:
+
+```bash
+# From pve1:
+pct enter 104
+
+# Keep the installed git-based Hermes build current.
+hermes update --yes
+
+# Install/refresh the Discord gateway dependencies. This is also managed by
+# ansible/roles/hermes so redeploys keep it in place.
+/root/.local/bin/uv pip install --python /usr/local/lib/hermes-agent/venv/bin/python -e "/usr/local/lib/hermes-agent[messaging]"
+
+# Authenticate Nous Portal. On this headless LXC, manual paste is the most
+# reliable flow: open the printed URL on your laptop, finish login, then paste
+# the final callback URL back into this prompt.
+hermes auth add nous --type oauth --no-browser --manual-paste --timeout 600
+hermes setup --portal
+hermes portal status
+
+# Confirm the local agent can answer before adding Discord.
+hermes -z "Reply with exactly: Hermes is ready."
+```
+
+Create the Discord bot in the [Discord Developer Portal](https://discord.com/developers/applications):
+
+1. Create a new application named `Hermes Agent`.
+2. In **Bot**, enable **Server Members Intent** and **Message Content Intent**.
+3. Reset/copy the bot token once and store it in a password manager.
+4. Invite the bot with scopes `bot` and `applications.commands`; the recommended permission integer is `274878286912`.
+5. Enable Discord Developer Mode, then copy your Discord user ID.
+
+Configure Hermes from inside CT 104:
+
+```bash
+read -rsp "Discord bot token: " DISCORD_BOT_TOKEN; echo
+read -rp "Allowed Discord user IDs, comma-separated: " DISCORD_ALLOWED_USERS
+
+tmp_env="$(mktemp)"
+grep -vE '^(DISCORD_BOT_TOKEN|DISCORD_ALLOWED_USERS|DISCORD_REQUIRE_MENTION|DISCORD_FREE_RESPONSE_CHANNELS|WHATSAPP_ENABLED)=' /root/.hermes/.env > "$tmp_env"
+{
+  printf 'DISCORD_BOT_TOKEN=%s\n' "$DISCORD_BOT_TOKEN"
+  printf 'DISCORD_ALLOWED_USERS=%s\n' "$DISCORD_ALLOWED_USERS"
+  printf 'DISCORD_REQUIRE_MENTION=true\n'
+  printf 'WHATSAPP_ENABLED=false\n'
+} >> "$tmp_env"
+install -m 600 "$tmp_env" /root/.hermes/.env
+rm -f "$tmp_env"
+
+systemctl restart hermes-gateway
+systemctl status hermes-gateway --no-pager -l
+journalctl -u hermes-gateway -n 80 --no-pager
+hermes doctor
+```
+
+First test path:
+
+1. DM the bot in Discord. DMs do not require an `@mention`.
+2. Send `/whoami`; it should show your authorized user scope.
+3. Send `/model` and pick the current agentic model from Nous Portal.
+4. Send `/sethome` in the channel where reminders and cron results should land.
+
+For a dedicated mention-free assistant channel, copy the Discord channel ID and add it after the DM test works:
+
+```bash
+read -rp "Free-response Discord channel IDs, comma-separated: " DISCORD_FREE_RESPONSE_CHANNELS
+tmp_env="$(mktemp)"
+grep -vE '^DISCORD_FREE_RESPONSE_CHANNELS=' /root/.hermes/.env > "$tmp_env"
+printf 'DISCORD_FREE_RESPONSE_CHANNELS=%s\n' "$DISCORD_FREE_RESPONSE_CHANNELS" >> "$tmp_env"
+install -m 600 "$tmp_env" /root/.hermes/.env
+rm -f "$tmp_env"
+systemctl restart hermes-gateway
+```
+
+To make the Discord setup survive GitHub Actions deploys, mirror the same values into repository Actions secrets:
+
+| Secret | Value |
+|--------|-------|
+| `HERMES_DISCORD_BOT_TOKEN` | Discord bot token |
+| `HERMES_DISCORD_ALLOWED_USERS` | Comma-separated Discord user IDs allowed to use the bot |
+| `HERMES_API_SERVER_KEY` | Long random bearer token if exposing the OpenAI-compatible API beyond localhost |
 
 ### Photos / Immich (pve2)
 
@@ -168,7 +260,9 @@ All nodes and containers are connected via [Tailscale](https://tailscale.com) me
 |--------------------|---------------------------|-----------------|
 | pve1               | `100.68.132.46`           | pve1 (host)     |
 | pve2               | `100.114.157.124`         | pve2 (host)     |
-| immich-1           | `<IMMICH_TAILSCALE_IP>`   | CT 103 (fill in after first deploy) |
+| adguard            | `100.126.248.124`         | CT 100          |
+| hermes             | `100.74.167.39`           | CT 104          |
+| immich             | `100.125.138.22`          | CT 103          |
 
 > Tailscale IPs are in the 100.64.0.0/10 CGNAT range and are only reachable from inside this tailnet — not from the public internet. Container IPs are assigned on first `tailscale up` and stable thereafter.
 
@@ -259,6 +353,9 @@ Deployments are automated via GitHub Actions. OpenTofu state is stored in the `t
 | `HERMES_MODEL_PROVIDER` | Optional Hermes model provider to configure non-interactively |
 | `HERMES_MODEL_NAME` | Optional model name for the selected provider |
 | `HERMES_MODEL_BASE_URL` | Optional base URL for custom OpenAI-compatible providers |
+| `HERMES_DISCORD_BOT_TOKEN` | Discord bot token for the Hermes messaging gateway |
+| `HERMES_DISCORD_ALLOWED_USERS` | Comma-separated Discord user IDs allowed to interact with Hermes |
+| `HERMES_WHATSAPP_ALLOWED_USERS` | Optional WhatsApp IDs if WhatsApp is enabled later |
 
 > `GITHUB_TOKEN` is provided automatically by GitHub Actions and is used by terraform-backend-git to read/write state.
 
@@ -340,33 +437,33 @@ Tailscale IPs for `pve1` and `pve2` live in `scripts/status.env`. Source it befo
 source scripts/status.env && ./scripts/status.sh
 ```
 
-Sample output (run 2026-04-25, both nodes down — pve2 offline on Tailscale, pve1 containers stopped):
+Sample output (run 2026-05-24):
 
 ```
   Homelab Service Status
   ----------------------------------------------------------------------
 
   adguard        CT 100
-  LAN: <unavailable>      Tailscale: <none>
+  LAN: 192.168.1.171      Tailscale: 100.126.248.124
   ---
-  [ ] AdGuard Home       http://<unavailable>:80
-  [ ] DNS                dns://<unavailable>:53
+  [*] AdGuard Home       http://192.168.1.171:80
+  [*] DNS                dns://192.168.1.171:53
 
   hermes         CT 104
-  LAN: <unavailable>      Tailscale: <none>
+  LAN: 192.168.1.192      Tailscale: 100.74.167.39
   ---
-  [ ] Hermes API         http://<unavailable>:8642
+  [ ] Hermes API         http://192.168.1.192:8642
 
   immich         CT 103
-  LAN: <unavailable>      Tailscale: <none>
+  LAN: 192.168.1.172      Tailscale: 100.125.138.22
   ---
-  [ ] Immich             http://<unavailable>:2283
+  [*] Immich             http://192.168.1.172:2283
 
   ----------------------------------------------------------------------
   [*] = port listening    [ ] = port not listening
 ```
 
-`[*]` next to a service means the port is bound and accepting connections; `[ ]` means the container is up but the service isn't listening (or the container/host is unreachable, in which case `LAN`/`Tailscale` will also be `<unavailable>`/`<none>`).
+`[*]` next to a service means the port is bound and accepting connections; `[ ]` means the container is up but the service isn't listening (or the container/host is unreachable, in which case `LAN`/`Tailscale` will also be `<unavailable>`/`<none>`). Hermes API intentionally binds to localhost until `HERMES_API_SERVER_KEY` is configured and deployed, so the Discord gateway can be healthy while the LAN API row is `[ ]`.
 
 ## Architecture
 

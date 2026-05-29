@@ -31,6 +31,11 @@
           <mxGeometry x="90" y="160" width="190" height="160" as="geometry"/>
         </mxCell>
 
+        <!-- Hermes container (pve1) -->
+        <mxCell id="hermes" value="&lt;b style='font-size:13px'&gt;CT 104: hermes&lt;/b&gt;&lt;br&gt;&lt;hr size='1' style='margin:4px 0'&gt;Ubuntu &amp;nbsp;|&amp;nbsp; 2 Cores &amp;nbsp;|&amp;nbsp; 4 GiB RAM&lt;br&gt;Root: 32 GB (local-lvm)&lt;br&gt;&lt;br&gt;Hermes Agent gateway&lt;br&gt;Discord personal assistant&lt;br&gt;Nous Portal + tools&lt;br&gt;&lt;br&gt;&lt;i&gt;Port: 8642 &amp;nbsp;|&amp;nbsp; TUN (Tailscale)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="310" y="160" width="190" height="180" as="geometry"/>
+        </mxCell>
+
         <!-- Network bridge - pve1 -->
         <mxCell id="vmbr0-pve1" value="&lt;b&gt;vmbr0&lt;/b&gt; (enp1s0)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="140" y="555" width="310" height="30" as="geometry"/>
@@ -38,6 +43,9 @@
 
         <!-- Container to bridge connections - pve1 -->
         <mxCell id="ag-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="adguard" target="vmbr0-pve1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="hermes-net" value="" style="endArrow=none;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="hermes" target="vmbr0-pve1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
