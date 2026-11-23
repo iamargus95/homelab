@@ -1,0 +1,36 @@
+---
+- name: Install standalone monitoring and agent applications
+  hosts: media_servers
+  become: true
+  roles:
+    - role: uptime_kuma
+      tags: [uptime-kuma]
+    - role: hermes_docker
+      tags: [hermes]
+  post_tasks:
+    - name: Check for the existing configured Homarr board
+      ansible.builtin.stat:
+        path: /opt/media-stack/.configured-homarr
+      register: homarr_existing_board
+
+    - name: Install additive Homarr app shortcut helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py"
+        dest: /opt/media-stack/add-homarr-server-apps.py
+        owner: root
+        group: root
+        mode: '0700'
+      when: homarr_existing_board.stat.exists
+
+    - name: Add monitoring and enabled Hermes Webapp shortcuts to Homarr
+      ansible.builtin.command:
+        argv: >-
+          {{ ['python3', '/opt/media-stack/add-homarr-server-apps.py',
+              '--kuma-url', 'http://' + ansible_host + ':3001']
+             + (['--hermes-url', hermes_docker_webapp_url]
+                if (hermes_docker_webapp_enabled | default(false) | bool)
+                else ['--kuma-only']) }}
+      register: homarr_server_app_shortcuts
+      changed_when: >-
+        '"added_tiles": []' not in homarr_server_app_shortcuts.stdout
+      when: homarr_existing_board.stat.exists

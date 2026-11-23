@@ -1,0 +1,97 @@
+#!/usr/bin/python3
+"""Expose bounded media server operations through a forced SSH command."""
+
+import fcntl
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from urllib.request import ProxyHandler, build_opener
+
+STATE = Path("/var/lib/hermes-homelab")
+APPROVAL = STATE / "restart-jellyfin"
+DOCKER = "/usr/bin/docker"
+
+
+def run(*args):
+    return subprocess.check_output(args, text=True, timeout=45).strip()
+
+
+def jellyfin():
+    ids = run(
+        DOCKER, "ps", "-aq",
+        "--filter", "label=com.docker.compose.project=media-stack",
+        "--filter", "label=com.docker.compose.service=jellyfin",
+        "--filter", "label=com.docker.compose.oneoff=False",
+    ).splitlines()
+    if len(ids) != 1:
+        raise RuntimeError(f"Expected one Jellyfin container, found {len(ids)}")
+    return ids[0]
+
+
+def healthy(container):
+    state = run(DOCKER, "inspect", "--format", "{{.State.Status}}", container)
+    if state != "running":
+        return False
+    bindings = run(
+        DOCKER, "inspect", "--format",
+        '{{with index .NetworkSettings.Ports "8096/tcp"}}{{(index . 0).HostIp}}{{end}}',
+        container,
+    )
+    host = "127.0.0.1" if bindings == "0.0.0.0" else bindings
+    if not host:
+        return False
+    if ":" in host:
+        host = "[::1]" if host == "::" else f"[{host}]"
+    try:
+        with build_opener(ProxyHandler({})).open(
+            f"http://{host}:8096/health", timeout=3
+        ) as response:
+            return response.status == 200
+    except OSError:
+        return False
+
+
+def main(action):
+    if action == "status":
+        print(run("/usr/bin/uptime"))
+        print(run("/usr/bin/free", "-h"))
+        media = ("/srv/media/library",) if Path("/srv/media/library").exists() else ()
+        print(run("/usr/bin/df", "-h", "/", *media))
+        print(run(
+            DOCKER, "ps", "-a", "--filter", "label=com.docker.compose.project=media-stack",
+            "--format", "{{.Names}}: {{.Status}}",
+        ))
+        print(f"Jellyfin HTTP health: {'ok' if healthy(jellyfin()) else 'unavailable'}")
+        return
+
+    with (STATE / "lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if action == "approve-restart-jellyfin":
+            APPROVAL.touch(mode=0o600)
+            print("Approved one Jellyfin restart in the next five minutes.")
+            return
+
+        if not APPROVAL.exists() or time.time() - APPROVAL.stat().st_mtime > 300:
+            raise RuntimeError("No current Jellyfin restart approval. Ask the operator to approve it on the host.")
+        container = jellyfin()
+        APPROVAL.unlink()
+        run(DOCKER, "restart", "--time", "15", container)
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            if healthy(container):
+                print("Jellyfin restarted and returned HTTP 200 on /health.")
+                return
+            time.sleep(2)
+        raise RuntimeError("Jellyfin restarted but its HTTP health check did not recover.")
+
+
+if __name__ == "__main__":
+    actions = {"status", "restart-jellyfin", "approve-restart-jellyfin"}
+    if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in actions:
+        sys.exit("Run with sudo and specify one supported action.")
+    try:
+        main(sys.argv[1])
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        sys.exit(str(exc))

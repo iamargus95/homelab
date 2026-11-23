@@ -1,0 +1,14 @@
+all:
+  children:
+    media_servers:
+      hosts:
+        alienware:
+          ansible_host: 192.168.1.243
+          ansible_user: argus
+          # Use the installed sudo.ws for Ansible's custom password prompt.
+          ansible_become_exe: /usr/bin/sudo.ws
+          ansible_python_interpreter: /usr/bin/python3
+          hermes_docker_webapp_enabled: true
+          media_public_hostname: jellyfin.surajkamath.dev
+          media_jellyfin_known_proxies:
+            - 192.168.1.243

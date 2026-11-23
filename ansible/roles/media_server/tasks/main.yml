@@ -1,0 +1,240 @@
+---
+- name: Inspect filesystem signatures
+  ansible.builtin.command: "blkid -p -s TYPE -o value {{ item.device }}"
+  loop: "{{ media_disks }}"
+  register: disk_types
+  changed_when: false
+  failed_when: disk_types.rc not in [0, 2]
+
+- name: Require explicit approval for blank disks and reject other filesystem types
+  ansible.builtin.assert:
+    that:
+      - item.stdout == 'ext4' or (item.stdout == '' and media_initialize_disks | bool)
+    fail_msg: Disk is not ext4. Inspect it and explicitly approve initialization before proceeding.
+  loop: "{{ disk_types.results }}"
+  loop_control:
+    label: "{{ item.item.device }}"
+
+- name: Install storage and Docker prerequisites
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, e2fsprogs, python3-debian, python3-yaml, python3-configobj]
+    update_cache: true
+    state: present
+
+- name: Create ext4 filesystems without overwriting existing signatures
+  community.general.filesystem:
+    dev: "{{ item.device }}"
+    fstype: ext4
+    opts: "-L {{ item.label }} -m 0"
+    force: false
+  loop: "{{ media_disks }}"
+
+- name: Read stable filesystem UUIDs
+  ansible.builtin.command: "blkid -s UUID -o value {{ item.device }}"
+  loop: "{{ media_disks }}"
+  register: disk_uuids
+  changed_when: false
+
+- name: Persist and mount data disks
+  ansible.posix.mount:
+    path: "{{ item.item.mount }}"
+    src: "UUID={{ item.stdout }}"
+    fstype: ext4
+    opts: defaults,noatime,nofail,x-systemd.device-timeout=15s
+    state: mounted
+  loop: "{{ disk_uuids.results }}"
+  loop_control:
+    label: "{{ item.item.mount }}"
+
+- name: Create media and download directories on HDD
+  ansible.builtin.file:
+    path: "/srv/media/{{ item }}"
+    state: directory
+    owner: "{{ media_uid }}"
+    group: "{{ media_gid }}"
+    mode: '2775'
+  loop:
+    - library/movies
+    - library/tv
+    - library/music
+    - downloads/torrents/incomplete
+    - downloads/torrents/movies
+    - downloads/torrents/tv
+    - downloads/torrents/music
+    - downloads/usenet/incomplete
+    - downloads/usenet/complete
+
+- name: Create Docker keyring
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Install official Docker signing key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Configure official Docker repository for installed Ubuntu release
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: stable
+    architectures: amd64
+    signed_by: /etc/apt/keyrings/docker.asc
+
+- name: Install Docker Engine and Compose
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+    update_cache: true
+    state: present
+
+- name: Create deployment and app state directories on boot SSD
+  ansible.builtin.file:
+    path: "{{ media_root }}/{{ item }}"
+    state: directory
+    owner: "{{ media_uid }}"
+    group: "{{ media_gid }}"
+    mode: '0750'
+  loop: ['', config/jellyfin, cache/jellyfin, config/sonarr, config/radarr, config/lidarr, config/prowlarr, config/bazarr, config/qbittorrent, config/sabnzbd, config/seerr, config/homarr]
+
+- name: Read Intel render device group
+  ansible.builtin.command: stat -c %g /dev/dri/renderD128
+  register: render_group
+  changed_when: false
+
+- name: Check whether administrator setup is complete
+  ansible.builtin.stat:
+    path: "{{ media_root }}/.configured-secure"
+  register: media_bootstrap_completed
+
+- name: Create persistent Homarr encryption key
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import os, secrets
+        fd = os.open('{{ media_root }}/.homarr.env', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            f.write('SECRET_ENCRYPTION_KEY=' + secrets.token_hex(32) + '\n')
+    creates: "{{ media_root }}/.homarr.env"
+  no_log: true
+
+- name: Install Compose definition
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ media_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create Docker service override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: '0755'
+
+- name: Prevent Docker starting without media storage
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/media-storage.conf
+    mode: '0644'
+    content: |
+      [Unit]
+      RequiresMountsFor=/srv/media /srv/ssd
+      BindsTo=srv-media.mount srv-ssd.mount
+      After=srv-media.mount srv-ssd.mount
+  register: docker_mount_dependency
+
+- name: Enable Docker with mount dependencies
+  ansible.builtin.systemd:
+    name: docker
+    daemon_reload: true
+    enabled: true
+    state: "{{ 'restarted' if docker_mount_dependency.changed else 'started' }}"
+
+- name: Deploy media containers
+  environment:
+    COMPOSE_PARALLEL_LIMIT: "2"
+  community.docker.docker_compose_v2:
+    project_src: "{{ media_root }}"
+    files: [compose.yml]
+    state: present
+    pull: missing
+
+- name: Install initial app configuration script
+  ansible.builtin.copy:
+    src: bootstrap.py
+    dest: "{{ media_root }}/bootstrap.py"
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Initialize app accounts and integrations before LAN publication
+  ansible.builtin.command: "python3 {{ media_root }}/bootstrap.py"
+  args:
+    creates: "{{ media_root }}/.configured-secure"
+
+- name: Check administrator setup completion
+  ansible.builtin.stat:
+    path: "{{ media_root }}/.configured-secure"
+  register: media_bootstrap_completed
+
+- name: Publish authenticated apps on LAN address
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ media_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply LAN listener configuration
+  community.docker.docker_compose_v2:
+    project_src: "{{ media_root }}"
+    files: [compose.yml]
+    state: present
+    pull: missing
+
+- name: Install Homarr first-run setup script
+  ansible.builtin.copy:
+    src: bootstrap-homarr.py
+    dest: "{{ media_root }}/bootstrap-homarr.py"
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Configure Homarr administrator and media dashboard
+  ansible.builtin.command: "python3 {{ media_root }}/bootstrap-homarr.py"
+  args:
+    creates: "{{ media_root }}/.configured-homarr"
+
+
+- name: Install Jellyfin public proxy configuration script
+  ansible.builtin.copy:
+    src: configure-jellyfin-public.py
+    dest: "{{ media_root }}/configure-jellyfin-public.py"
+    owner: root
+    group: root
+    mode: '0700'
+  when: media_public_hostname | length > 0
+
+- name: Configure Jellyfin public proxy settings
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ media_root }}/configure-jellyfin-public.py"
+      - --hostname
+      - "{{ media_public_hostname }}"
+      - --local-url
+      - "http://{{ media_lan_address }}:8096"
+      - --known-proxies
+      - "{{ media_jellyfin_known_proxies | join(',') }}"
+      - --root
+      - "{{ media_root }}"
+  register: jellyfin_public_config
+  changed_when: >-
+    '"changed": true' in jellyfin_public_config.stdout
+  when: media_public_hostname | length > 0

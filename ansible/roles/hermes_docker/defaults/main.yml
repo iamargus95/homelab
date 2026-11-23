@@ -1,0 +1,8 @@
+---
+hermes_docker_root: /opt/hermes
+hermes_docker_image: nousresearch/hermes-agent:v0.23.3@sha256:3e9fe4c6ef36490f43aa0d0d80f9df64e9c92a576eee3042f1a97c8813c05355
+hermes_docker_uid: 1000
+hermes_docker_gid: 1000
+hermes_docker_webapp_enabled: false
+hermes_docker_webapp_port: 9120
+hermes_docker_webapp_url: "http://{{ ansible_host }}:{{ hermes_docker_webapp_port }}"

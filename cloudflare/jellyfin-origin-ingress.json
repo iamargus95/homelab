@@ -1,0 +1,12 @@
+[
+  {
+    "service": "http://192.168.1.243:8096",
+    "hostname": "jellyfin.surajkamath.dev",
+    "originRequest": {
+      "httpHostHeader": "jellyfin.surajkamath.dev"
+    }
+  },
+  {
+    "service": "http_status:404"
+  }
+]

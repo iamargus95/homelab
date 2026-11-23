@@ -1,0 +1,92 @@
+---
+- name: Install Hermes configuration helper dependency
+  ansible.builtin.apt:
+    name: python3-yaml
+    state: present
+
+- name: Create protected Hermes deployment directory
+  ansible.builtin.file:
+    path: "{{ hermes_docker_root }}"
+    state: directory
+    owner: root
+    group: "{{ hermes_docker_gid }}"
+    mode: '0750'
+
+- name: Create Hermes boot-SSD state directory
+  ansible.builtin.file:
+    path: "{{ hermes_docker_root }}/data"
+    state: directory
+    owner: "{{ hermes_docker_uid }}"
+    group: "{{ hermes_docker_gid }}"
+    mode: '0700'
+
+- name: Install private Hermes configuration helper
+  ansible.builtin.copy:
+    src: configure.py
+    dest: "{{ hermes_docker_root }}/configure.py"
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Configure ChatGPT Codex provider and private API
+  ansible.builtin.command:
+    argv: [python3, "{{ hermes_docker_root }}/configure.py", --root, "{{ hermes_docker_root }}"]
+  register: hermes_configuration
+  changed_when: >-
+    '"changed": true' in hermes_configuration.stdout
+
+- name: Set owner of Hermes configuration files
+  ansible.builtin.file:
+    path: "{{ hermes_docker_root }}/data/{{ item }}"
+    owner: "{{ hermes_docker_uid }}"
+    group: "{{ hermes_docker_gid }}"
+    mode: '0600'
+  loop: [.env, config.yaml]
+
+- name: Install opt-in Hermes Webapp configuration helper
+  ansible.builtin.copy:
+    src: configure-webapp.py
+    dest: "{{ hermes_docker_root }}/configure-webapp.py"
+    owner: root
+    group: root
+    mode: '0700'
+  when: hermes_docker_webapp_enabled | bool
+
+- name: Prepare password-protected Hermes Webapp
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ hermes_docker_root }}/configure-webapp.py"
+      - --root
+      - "{{ hermes_docker_root }}"
+      - --public-url
+      - "{{ hermes_docker_webapp_url }}"
+      - --port
+      - "{{ hermes_docker_webapp_port | string }}"
+  register: hermes_webapp_configuration
+  changed_when: >-
+    '"changed": true' in hermes_webapp_configuration.stdout
+  when: hermes_docker_webapp_enabled | bool
+
+- name: Render official Hermes Docker deployment
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ hermes_docker_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start private Hermes gateway
+  community.docker.docker_compose_v2:
+    project_src: "{{ hermes_docker_root }}"
+    state: present
+    pull: missing
+    recreate: "{{ 'always' if hermes_configuration.changed or (hermes_webapp_configuration.changed | default(false)) else 'auto' }}"
+
+- name: Install Hermes CLI wrapper
+  ansible.builtin.copy:
+    src: hermes
+    dest: /usr/local/bin/hermes
+    owner: root
+    group: root
+    mode: '0755'

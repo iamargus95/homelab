@@ -1,0 +1,12 @@
+[
+  {
+    "action": "set_cache_settings",
+    "action_parameters": {
+      "cache": false
+    },
+    "description": "Bypass cache for Jellyfin authentication and media",
+    "enabled": true,
+    "expression": "(http.host eq \"jellyfin.surajkamath.dev\")",
+    "ref": "jellyfin_no_cache"
+  }
+]

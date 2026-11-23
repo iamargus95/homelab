@@ -1,0 +1,6 @@
+---
+- name: Give Hermes scoped access to the Alienware media server
+  hosts: media_servers
+  become: true
+  roles:
+    - hermes_ops

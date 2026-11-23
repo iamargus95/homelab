@@ -1,0 +1,57 @@
+{
+  "account_id": "c4b21094b9a8b7be76a37dad03a3b7c8",
+  "zone_id": "0b8fd5284e8d2e76d5dfc7f534f3564f",
+  "zone": "surajkamath.dev",
+  "hostname": "jellyfin.surajkamath.dev",
+  "tunnel_name": "homelab",
+  "tunnel_id": "43ef4de5-6b0c-459e-b36a-f9e9eb135a41",
+  "management": "cloudflare",
+  "origin": "http://192.168.1.243:8096",
+  "observed_origin_proxy": "192.168.1.243",
+  "dns_record_id": "b8aa413a823badb9137bb47328b961dc",
+  "dns": {
+    "type": "CNAME",
+    "name": "jellyfin.surajkamath.dev",
+    "content": "43ef4de5-6b0c-459e-b36a-f9e9eb135a41.cfargotunnel.com",
+    "proxied": true,
+    "ttl": 1
+  },
+  "cache_ruleset_id": "d93f76eeb3ed408c8cb5e7fbbf7a820c",
+  "cache_rule_ref": "jellyfin_no_cache",
+  "ingress": [
+    {
+      "hostname": "jellyfin.surajkamath.dev",
+      "service": "http_status:403"
+    },
+    {
+      "service": "http_status:404"
+    }
+  ],
+  "cache_rules": [
+    {
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      },
+      "description": "Bypass cache for Jellyfin authentication and media",
+      "enabled": true,
+      "expression": "(http.host eq \"jellyfin.surajkamath.dev\")",
+      "ref": "jellyfin_no_cache"
+    }
+  ],
+  "status": "blocked_pending_access_mode",
+  "status_reason": "Direct video requests without credentials, and with invalid credentials, returned 206. Public ingress temporarily returns 403 pending access-mode decision.",
+  "desired_ingress": [
+    {
+      "service": "http://192.168.1.243:8096",
+      "hostname": "jellyfin.surajkamath.dev",
+      "originRequest": {
+        "httpHostHeader": "jellyfin.surajkamath.dev"
+      }
+    },
+    {
+      "service": "http_status:404"
+    }
+  ],
+  "tunnel_config_version": 2
+}

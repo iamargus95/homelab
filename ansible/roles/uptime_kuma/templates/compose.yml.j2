@@ -1,0 +1,19 @@
+name: uptime-kuma
+services:
+  uptime-kuma:
+    image: {{ kuma_image }}
+    init: true
+    user: "1000:1000"
+    environment:
+      TZ: Asia/Kolkata
+      UPTIME_KUMA_DB_TYPE: sqlite
+    ports:
+      - "{{ kuma_address if kuma_configured.stat.exists else '127.0.0.1' }}:{{ kuma_port }}:3001"
+    volumes:
+      - {{ kuma_root }}/data:/app/data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

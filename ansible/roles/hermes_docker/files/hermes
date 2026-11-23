@@ -1,0 +1,10 @@
+#!/bin/sh
+# Root-owned CLI wrapper. Normal sudo authentication is required after setup.
+set -eu
+if [ "$(id -u)" != 0 ]; then
+    exec sudo /usr/local/bin/hermes "$@"
+fi
+if [ -t 0 ] && [ -t 1 ]; then
+    exec /usr/bin/docker exec -it hermes-agent hermes "$@"
+fi
+exec /usr/bin/docker exec -i hermes-agent hermes "$@"

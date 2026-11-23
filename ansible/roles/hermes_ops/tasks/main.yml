@@ -1,0 +1,125 @@
+---
+- name: Verify the existing Hermes and media stack directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: [/opt/hermes/data, /opt/media-stack/compose.yml]
+  register: hermes_ops_paths
+
+- name: Require existing installations
+  ansible.builtin.assert:
+    that:
+      - hermes_ops_paths.results[0].stat.isdir | default(false)
+      - hermes_ops_paths.results[0].stat.uid == 1000
+      - hermes_ops_paths.results[1].stat.isreg | default(false)
+
+- name: Create the restricted SSH account
+  ansible.builtin.user:
+    name: hermes-ops
+    system: true
+    home: /var/lib/hermes-ops
+    create_home: false
+    shell: /bin/sh
+    password_lock: true
+
+- name: Create root-owned SSH and approval directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: /var/lib/hermes-ops, mode: '0755'}
+    - {path: /var/lib/hermes-ops/.ssh, mode: '0755'}
+    - {path: /var/lib/hermes-homelab, mode: '0700'}
+
+- name: Install fixed operations and SSH dispatcher
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - {src: hermes-homelab, dest: /usr/local/sbin/hermes-homelab}
+    - {src: dispatch, dest: /usr/local/bin/hermes-homelab-dispatch}
+
+- name: Grant access to the two fixed sudo actions
+  ansible.builtin.copy:
+    src: sudoers
+    dest: /etc/sudoers.d/hermes-homelab
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create Hermes operations and skill directories
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.file:
+    path: "/opt/hermes/data/{{ item }}"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0700'
+  loop: [homelab-ops, skills, skills/homelab-ops]
+
+- name: Generate the dedicated client key
+  ansible.builtin.command:
+    argv: [/usr/bin/ssh-keygen, -q, -t, ed25519, -N, '', -f, /opt/hermes/data/homelab-ops/id_ed25519]
+    creates: /opt/hermes/data/homelab-ops/id_ed25519
+  become_user: "{{ ansible_user }}"
+
+- name: Read SSH public keys
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - /opt/hermes/data/homelab-ops/id_ed25519.pub
+    - /etc/ssh/ssh_host_ed25519_key.pub
+  register: hermes_ops_public_keys
+
+- name: Restrict the client key to the loopback dispatcher
+  ansible.builtin.copy:
+    content: |
+      restrict,from="127.0.0.1",command="/usr/local/bin/hermes-homelab-dispatch" {{ hermes_ops_public_keys.results[0].content | b64decode | trim }}
+    dest: /var/lib/hermes-ops/.ssh/authorized_keys
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Pin the Alienware SSH host key
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.copy:
+    content: |
+      127.0.0.1 {{ (hermes_ops_public_keys.results[1].content | b64decode).split()[:2] | join(' ') }}
+    dest: /opt/hermes/data/homelab-ops/known_hosts
+    owner: '1000'
+    group: '1000'
+    mode: '0600'
+
+- name: Install Hermes SSH configuration and operations skill
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/opt/hermes/data/{{ item.dest }}"
+    owner: '1000'
+    group: '1000'
+    mode: '0600'
+  loop:
+    - {src: ssh_config, dest: homelab-ops/ssh_config}
+    - {src: SKILL.md, dest: skills/homelab-ops/SKILL.md}
+
+- name: Verify the running gateway can use the read-only action
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - exec
+      - --user
+      - '1000:1000'
+      - hermes-agent
+      - ssh
+      - -F
+      - /opt/data/homelab-ops/ssh_config
+      - alienware-ops
+      - status
+  changed_when: false
+  when: not ansible_check_mode

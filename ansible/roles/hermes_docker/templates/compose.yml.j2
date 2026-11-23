@@ -1,0 +1,21 @@
+name: hermes
+services:
+  hermes:
+    image: {{ hermes_docker_image }}
+    container_name: hermes-agent
+    # Linux host networking also lets the Codex loopback callback use an SSH tunnel.
+    network_mode: host
+    environment:
+      HERMES_UID: "{{ hermes_docker_uid }}"
+      HERMES_GID: "{{ hermes_docker_gid }}"
+      TZ: Asia/Kolkata
+    env_file: ["{{ hermes_docker_root }}/data/.env"]
+    volumes:
+      - {{ hermes_docker_root }}/data:/opt/data
+    command: [gateway, run]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

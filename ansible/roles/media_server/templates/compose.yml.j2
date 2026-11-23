@@ -1,0 +1,214 @@
+name: media-stack
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    user: "{{ media_uid }}:{{ media_gid }}"
+    group_add: ["{{ render_group.stdout }}"]
+    devices: [/dev/dri/renderD128:/dev/dri/renderD128]
+    environment:
+      TZ: "{{ media_timezone }}"
+    ports: ["{{ media_bind_address }}:8096:8096"]
+    volumes:
+      - {{ media_root }}/config/jellyfin:/config
+      - {{ media_root }}/cache/jellyfin:/cache
+      - type: bind
+        source: /srv/media/library
+        target: /media
+        read_only: true
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:8989:8989"]
+    volumes:
+      - {{ media_root }}/config/sonarr:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:7878:7878"]
+    volumes:
+      - {{ media_root }}/config/radarr:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:8686:8686"]
+    volumes:
+      - {{ media_root }}/config/lidarr:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:9696:9696"]
+    volumes:
+      - {{ media_root }}/config/prowlarr:/config
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:6767:6767"]
+    volumes:
+      - {{ media_root }}/config/bazarr:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+      WEBUI_PORT: "8080"
+      TORRENTING_PORT: "6881"
+    ports: ["{{ media_bind_address }}:8080:8080"]
+    volumes:
+      - {{ media_root }}/config/qbittorrent:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      UMASK: "002"
+    ports: ["{{ media_bind_address }}:8081:8080"]
+    volumes:
+      - {{ media_root }}/config/sabnzbd:/config
+      - type: bind
+        source: /srv/media
+        target: /data
+        bind:
+          create_host_path: false
+
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    init: true
+    user: "{{ media_uid }}:{{ media_gid }}"
+    environment:
+      TZ: "{{ media_timezone }}"
+      LOG_LEVEL: info
+    ports: ["{{ media_bind_address }}:5055:5055"]
+    volumes:
+      - {{ media_root }}/config/seerr:/app/config
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:v2.14.0
+    environment:
+      PUID: "{{ media_uid }}"
+      PGID: "{{ media_gid }}"
+      TZ: "{{ media_timezone }}"
+      BASE_URL: "http://{{ media_lan_address }}:7575"
+      ENABLE_DOCKER: "false"
+      ENABLE_DNS_CACHING: "false"
+    env_file:
+      - .homarr.env
+    ports: ["{{ media_bind_address }}:7575:7575"]
+    volumes:
+      - {{ media_root }}/config/homarr:/appdata
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

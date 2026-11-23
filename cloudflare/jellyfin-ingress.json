@@ -1,0 +1,9 @@
+[
+  {
+    "hostname": "jellyfin.surajkamath.dev",
+    "service": "http_status:403"
+  },
+  {
+    "service": "http_status:404"
+  }
+]

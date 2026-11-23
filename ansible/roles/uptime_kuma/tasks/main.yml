@@ -1,0 +1,84 @@
+---
+- name: Require an existing Docker installation
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+- name: Create protected monitoring deployment directory
+  ansible.builtin.file:
+    path: "{{ kuma_root }}"
+    state: directory
+    owner: root
+    group: "{{ kuma_owner }}"
+    mode: '0750'
+
+- name: Create monitoring state on boot SSD
+  ansible.builtin.file:
+    path: "{{ kuma_root }}/data"
+    state: directory
+    owner: "{{ kuma_owner }}"
+    group: "{{ kuma_owner }}"
+    mode: '0750'
+
+- name: Check monitoring administrator setup
+  ansible.builtin.stat:
+    path: "{{ kuma_root }}/.configured-admin"
+  register: kuma_configured
+
+- name: Render monitoring Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ kuma_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start monitoring service
+  community.docker.docker_compose_v2:
+    project_src: "{{ kuma_root }}"
+    pull: missing
+    state: present
+
+- name: Install monitoring setup helpers
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ kuma_root }}/{{ item }}"
+    owner: root
+    group: root
+    mode: '0700'
+  loop: [bootstrap.py, bootstrap.js, sync-credentials.py]
+
+- name: Create administrator and initial monitors
+  ansible.builtin.command:
+    argv: [python3, "{{ kuma_root }}/bootstrap.py", --root, "{{ kuma_root }}", --address, "{{ kuma_address }}", --port, "{{ kuma_port | string }}"]
+  args:
+    creates: "{{ kuma_root }}/.configured-admin"
+
+- name: Verify monitoring setup before LAN publication
+  ansible.builtin.stat:
+    path: "{{ kuma_root }}/.configured-admin"
+  register: kuma_configured
+
+- name: Include Kuma in the existing media administrator credential file
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ kuma_root }}/sync-credentials.py"
+      - --source
+      - "{{ kuma_root }}/admin-credentials.json"
+  register: kuma_credentials_sync
+  changed_when: >-
+    '"changed": true' in kuma_credentials_sync.stdout
+
+- name: Publish configured monitoring service on LAN
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ kuma_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply monitoring LAN listener
+  community.docker.docker_compose_v2:
+    project_src: "{{ kuma_root }}"
+    pull: missing
+    state: present

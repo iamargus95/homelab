@@ -1,0 +1,6 @@
+---
+kuma_root: /opt/uptime-kuma
+kuma_image: louislam/uptime-kuma:2.5.12
+kuma_address: "{{ ansible_host }}"
+kuma_owner: argus
+kuma_port: 3001

@@ -1,0 +1,6 @@
+---
+- name: Configure Alienware media server
+  hosts: media_servers
+  become: true
+  roles:
+    - media_server

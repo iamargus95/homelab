@@ -1,0 +1,6 @@
+#!/bin/sh
+case "${SSH_ORIGINAL_COMMAND-}" in
+    status) exec /usr/bin/sudo -n /usr/local/sbin/hermes-homelab status ;;
+    restart-jellyfin) exec /usr/bin/sudo -n /usr/local/sbin/hermes-homelab restart-jellyfin ;;
+    *) echo 'Supported actions: status, restart-jellyfin' >&2; exit 64 ;;
+esac
