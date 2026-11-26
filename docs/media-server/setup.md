@@ -50,7 +50,7 @@ ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
 The role performs these steps:
 
 1. Inspect filesystem types, refuse unapproved blank/other-format disks, obtain UUIDs and persist/mount both data volumes.
-2. Create HDD library/download directories and boot-SSD state/cache directories.
+2. Create HDD library/download directories, boot-SSD state/cache directories and the NVMe transcode directory.
 3. Add Docker's official signing key and repository using Ubuntu's detected release codename; install Engine, containerd, Buildx and Compose.
 4. Create Homarr's encryption-key file once, render Compose and install Docker's mount dependency override.
 5. Start the initial stack with loopback-only web bindings until `.configured-secure` exists.

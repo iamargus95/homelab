@@ -1,0 +1,101 @@
+---
+- name: Create the private Speedtest Tracker project directory
+  ansible.builtin.file:
+    path: "{{ speedtest_tracker_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Look up the login user's IDs for persistent app data
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Generate the application key and initial admin password once
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      umask 077
+      temp_file=$(mktemp .env.XXXXXX)
+      trap 'rm -f -- "$temp_file"' EXIT
+      app_key=$(openssl rand -base64 32)
+      admin_password=$(openssl rand -hex 24)
+      printf '%s\n' "APP_KEY=base64:$app_key" 'ADMIN_EMAIL=admin@example.com' \
+        "ADMIN_PASSWORD=$admin_password" > "$temp_file"
+      ln "$temp_file" .env || test -s .env
+    chdir: "{{ speedtest_tracker_root }}"
+    creates: "{{ speedtest_tracker_root }}/.env"
+  no_log: true
+
+- name: Write the LAN-only Speedtest Tracker Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ speedtest_tracker_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  vars:
+    speedtest_tracker_uid: "{{ ansible_facts.getent_passwd[ansible_user][1] }}"
+    speedtest_tracker_gid: "{{ ansible_facts.getent_passwd[ansible_user][2] }}"
+
+- name: Start Speedtest Tracker
+  community.docker.docker_compose_v2:
+    project_src: "{{ speedtest_tracker_root }}"
+    state: present
+    pull: missing
+
+- name: Wait for the tracker API to respond
+  ansible.builtin.uri:
+    url: "{{ speedtest_tracker_url }}/api/healthcheck"
+    use_proxy: false
+    status_code: 200
+  register: speedtest_tracker_http
+  until: speedtest_tracker_http.status == 200
+  retries: 36
+  delay: 5
+
+- name: Add Speedtest Tracker to the private Homarr board
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      {{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py
+      --speedtest-tracker-url {{ speedtest_tracker_url }}
+    executable: python3
+  register: speedtest_tracker_homarr
+  changed_when: (speedtest_tracker_homarr.stdout | from_json).added_tiles | length > 0
+
+- name: Read the existing Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: speedtest_tracker_kuma_credentials
+  no_log: true
+
+- name: Register the tracker health check and WAN probes in Kuma
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (speedtest_tracker_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': item}) | to_json }}
+  loop:
+    - name: Speedtest Tracker
+      url: "{{ speedtest_tracker_url }}/api/healthcheck"
+    - name: Internet - Cloudflare
+      url: https://1.1.1.1/cdn-cgi/trace
+      expectedStatus: 200
+    - name: Internet - Google
+      url: https://www.gstatic.com/generate_204
+      expectedStatus: 204
+  register: speedtest_tracker_kuma
+  changed_when: (speedtest_tracker_kuma.stdout | from_json).monitors_created > 0
+  no_log: true

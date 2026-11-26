@@ -101,6 +101,14 @@
     mode: '0750'
   loop: ['', config/jellyfin, cache/jellyfin, config/sonarr, config/radarr, config/lidarr, config/prowlarr, config/bazarr, config/qbittorrent, config/sabnzbd, config/seerr, config/homarr]
 
+- name: Create Jellyfin transcode directory on the data SSD
+  ansible.builtin.file:
+    path: "{{ media_jellyfin_transcodes }}"
+    state: directory
+    owner: "{{ media_uid }}"
+    group: "{{ media_gid }}"
+    mode: '0750'
+
 - name: Read Intel render device group
   ansible.builtin.command: stat -c %g /dev/dri/renderD128
   register: render_group

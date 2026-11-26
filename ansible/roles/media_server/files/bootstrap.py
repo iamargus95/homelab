@@ -82,6 +82,7 @@ def qbit():
              'save_path':'/data/downloads/torrents', 'temp_path_enabled':True,
              'temp_path':'/data/downloads/torrents/incomplete', 'upnp':False,
              'dont_count_slow_torrents':True,
+             'max_ratio_enabled':True, 'max_ratio':0, 'max_ratio_act':0,
              'bypass_local_auth':False, 'bypass_auth_subnet_whitelist_enabled':False,
              'web_ui_csrf_protection_enabled':True}
     api(8080, '/api/v2/app/setPreferences', {'json':json.dumps(prefs)}, form=True, opener=op)
@@ -218,7 +219,8 @@ def hardware():
     call=jf_authenticated()
     cfg=call('/System/Configuration/encoding')
     cfg.update(HardwareAccelerationType='vaapi',VaapiDevice='/dev/dri/renderD128',
-               EnableHardwareEncoding=True,HardwareDecodingCodecs=['h264','hevc','mpeg2video','vc1','vp8','vp9'])
+               EnableHardwareEncoding=True,HardwareDecodingCodecs=['h264','hevc','mpeg2video','vc1','vp8','vp9'],
+               EnableThrottling=True,EnableSegmentDeletion=True)
     call('/System/Configuration/encoding',cfg,'POST')
 marker('hardware',hardware)
 

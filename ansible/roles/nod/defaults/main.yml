@@ -1,0 +1,5 @@
+---
+nod_root: /opt/nod
+nod_revision: ee2768c0920fb6d11240371f25c0ba7b9dc539d6
+nod_deployment: "{{ nod_root }}/src/deployment/self-host"
+nod_url: http://localhost:4310

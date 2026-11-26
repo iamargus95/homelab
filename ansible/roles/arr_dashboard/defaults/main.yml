@@ -1,0 +1,5 @@
+---
+arr_dashboard_root: /opt/arr-dashboard
+arr_dashboard_port: 3000
+arr_dashboard_image: khak1s/arr-dashboard:2.24.1@sha256:bd24ff75a61708de22c31947ea8f7efbe1c44ea870c3af9eb0f021968c5d4bab
+arr_dashboard_url: "http://{{ ansible_host }}:{{ arr_dashboard_port }}"

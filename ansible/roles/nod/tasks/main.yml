@@ -1,0 +1,129 @@
+---
+- name: Verify the existing Kuma Docker network
+  ansible.builtin.command: docker network inspect uptime-kuma_default
+  changed_when: false
+
+- name: Install Nod source build prerequisites
+  ansible.builtin.apt:
+    name: [git, openssl]
+    state: present
+
+- name: Create a private Nod deployment directory
+  ansible.builtin.file:
+    path: "{{ nod_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Check out the tested Nod self-host bundle revision
+  ansible.builtin.git:
+    repo: https://github.com/n8n-io/nod.git
+    dest: "{{ nod_root }}/src"
+    version: "{{ nod_revision }}"
+
+- name: Set up private Nod credentials and the Compose project
+  ansible.builtin.command: sh setup.sh
+  args:
+    chdir: "{{ nod_deployment }}"
+  environment:
+    COMPOSE_PROJECT_NAME: nod
+  register: nod_setup
+  changed_when: "'Using the existing .env' not in nod_setup.stdout"
+
+- name: Tag Nod images with the source revision
+  ansible.builtin.lineinfile:
+    path: "{{ nod_deployment }}/.env"
+    regexp: '^NOD_IMAGE_TAG='
+    line: "NOD_IMAGE_TAG={{ nod_revision }}"
+    mode: '0600'
+
+- name: Add the Kuma network to the Nod server only
+  ansible.builtin.copy:
+    src: monitoring.compose.yml
+    dest: "{{ nod_root }}/monitoring.compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Check for the three revision-pinned local images
+  ansible.builtin.command:
+    argv:
+      - docker
+      - image
+      - inspect
+      - "nod-server:{{ nod_revision }}"
+      - "nod-browser:{{ nod_revision }}"
+      - "nod-workspace:{{ nod_revision }}"
+  register: nod_images
+  changed_when: false
+  failed_when: nod_images.rc > 1
+
+- name: Build and start Nod with the upstream workspace firewall
+  community.docker.docker_compose_v2:
+    project_src: "{{ nod_deployment }}"
+    files: [compose.yaml, "{{ nod_root }}/monitoring.compose.yml"]
+    env_files: [.env]
+    state: present
+    build: "{{ 'always' if nod_images.rc else 'never' }}"
+    wait: true
+    wait_timeout: 240
+    timeout: 300
+
+- name: Verify the loopback web interface and token requirement
+  ansible.builtin.uri:
+    url: "{{ nod_url }}{{ item.path }}"
+    status_code: "{{ item.status }}"
+    use_proxy: false
+  loop:
+    - {path: '/', status: 200}
+    - {path: '/api/health', status: 401}
+
+- name: Read existing Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: nod_kuma_credentials
+  no_log: true
+
+- name: Verify Nod from Kuma and add its availability monitor
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (nod_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': {'name': 'Nod', 'url': 'http://nod-assistant:4310/',
+                               'headers': {'Host': 'localhost:4310'}}})
+         | to_json }}
+  register: nod_kuma_monitor
+  changed_when: (nod_kuma_monitor.stdout | default('{}', true) | from_json).monitors_created | default(0) > 0
+  no_log: true
+  ignore_errors: true
+
+- name: Install the additive Homarr shortcut helper
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py"
+    dest: /opt/media-stack/add-homarr-server-apps.py
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Add Nod to the private Homarr board
+  ansible.builtin.command:
+    argv: [python3, /opt/media-stack/add-homarr-server-apps.py, --nod-url, "{{ nod_url }}"]
+  register: nod_homarr
+  changed_when: >-
+    '"added_tiles": []' not in nod_homarr.stdout
+
+- name: Confirm the Kuma monitor configuration
+  ansible.builtin.assert:
+    that: nod_kuma_monitor is succeeded
+    fail_msg: Check Kuma administrator credentials and the Nod monitor settings, then rerun the playbook.

@@ -16,6 +16,7 @@ The standalone Alienware 15 R4 at `192.168.1.243` hosts ten media services, a se
 | App | Open on LAN | Purpose | Guide |
 | --- | --- | --- | --- |
 | Homarr | [Dashboard](http://192.168.1.243:7575/boards/homelab) | Private dashboard and service widgets | [Homarr](apps/homarr.md) |
+| Arr Dashboard | [3000](http://192.168.1.243:3000) | Media administration, provisioned by the standalone playbook | [Arr Dashboard](apps/arr-dashboard.md) |
 | Jellyfin | [8096](http://192.168.1.243:8096) | Stream movies, TV and music | [Jellyfin](apps/jellyfin.md) |
 | Seerr | [5055](http://192.168.1.243:5055) | Request content through Sonarr/Radarr | [Seerr](apps/seerr.md) |
 | Sonarr | [8989](http://192.168.1.243:8989) | TV library, searches and imports | [Sonarr](apps/sonarr.md) |
@@ -25,12 +26,14 @@ The standalone Alienware 15 R4 at `192.168.1.243` hosts ten media services, a se
 | Bazarr | [6767](http://192.168.1.243:6767) | English subtitle profiles and downloads | [Bazarr](apps/bazarr.md) |
 | qBittorrent | [8080](http://192.168.1.243:8080) | Active torrent download client | [qBittorrent](apps/qbittorrent.md) |
 | SABnzbd | [8081](http://192.168.1.243:8081) | Usenet client, awaiting a provider | [SABnzbd](apps/sabnzbd.md) |
-| Uptime Kuma | [3001](http://192.168.1.243:3001) | Twelve availability monitors | [Uptime Kuma](apps/uptime-kuma.md) |
+| Uptime Kuma | [3001](http://192.168.1.243:3001) | Availability checks for local services and internet connectivity | [Uptime Kuma](apps/uptime-kuma.md) |
+| Speedtest Tracker | [8765](http://192.168.1.243:8765) after deployment | Scheduled and on-demand Ookla tests with history | [Internet monitoring](apps/speedtest-tracker.md) |
 | Hermes Agent | [9120](http://192.168.1.243:9120); private API on loopback `8642` | ChatGPT/Codex assistant with a password-protected Webapp and Slack | [Hermes](apps/hermes.md) |
+| Nod | [4310](http://localhost:4310) through an SSH tunnel | Token-protected personal assistant | [Nod](apps/nod.md) |
 
 ## Current boundaries
 
-- The HDD contains media and downloads. App state, images and Jellyfin cache use the Ubuntu boot SSD. The extra NVMe SSD is mounted and reserved empty.
+- The HDD contains media and downloads. The boot SSD holds app state, images and Jellyfin's general cache. The extra NVMe holds Jellyfin's temporary streaming segments.
 - Each application shares the host's 6 physical cores / 12 logical CPUs. No per-app CPU quota, memory cap or dedicated core assignment is configured. See the measured table before interpreting resource use.
 - Passwords and API keys are kept on the server, never in these docs. The main password file is `/opt/media-stack/admin-credentials.json`, including its `uptime-kuma` entry. Kuma also retains `/opt/uptime-kuma/admin-credentials.json`. Hermes has a separate private API key and requires the user's ChatGPT/Codex sign-in.
 - Subtitle providers and a Usenet server are still unconfigured. No automatic media-server backup job is enabled.

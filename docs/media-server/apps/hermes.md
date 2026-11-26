@@ -85,7 +85,7 @@ Verified gateway `/health` returns `200`; `/v1/models` rejects absent/invalid be
 
 The [Docker role](../../../ansible/roles/hermes_docker/tasks/main.yml) creates private state, configures the Codex provider and API key, renders Compose and installs the CLI wrapper. The CLI wrapper uses the operator's sudo credentials. The separate operations role grants only two fixed commands to its dedicated SSH account. Configuration and auth use mode `0600`; the data directory uses `0700`. Back up state privately. Container logs rotate at 10 MB with three retained files.
 
-The official image includes its dependencies and avoids rebuilding the Python runtime over this network's slow PyPI route. The extra 500 GB SSD remains empty. Slack DMs are working. Scheduled reports have not been configured. CPU and memory are shared without explicit quotas; see [resources](../resources.md).
+The official image includes its dependencies and avoids rebuilding the Python runtime over this network's slow PyPI route. Slack DMs are working. Scheduled reports have not been configured. CPU and memory are shared without explicit quotas; see [resources](../resources.md).
 
 Sources: [official Docker guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker), [provider authentication](https://hermes-agent.nousresearch.com/docs/integrations/providers).
 
@@ -132,3 +132,39 @@ sudo /usr/local/sbin/hermes-homelab approve-restart-jellyfin
 Approval is consumed before the restart. Hermes reports whether Jellyfin's
 HTTP health check recovered. Verify scheduled diagnostics independently before
 adding a recurring Slack report.
+
+## Repository changes from Slack
+
+In `#hermes-agent`, mention Hermes and ask it to use `homelab-repo` for an
+explicit repository task. For a private request, use the existing Hermes DM.
+For example, ask it to make a specific Ansible change on a branch, run the
+relevant checks, and push the branch. The skill asks Hermes to report the
+branch, commit, and verification results. Pushing a branch does not deploy it.
+
+The Alienware checkout is `/opt/hermes/data/workspace/homelab`, visible to
+Hermes at `/opt/data/workspace/homelab`. It tracks the public GitHub repository.
+Changes on another machine are visible to Hermes after they are pushed and it
+fetches them. Use the `homelab-ops` skill for live service checks and the
+[operations guide](../operations.md) for backup and recovery procedures.
+
+Git uses the repository's write-enabled `Hermes on Alienware` deploy key.
+Its private half and pinned host key are under `/opt/hermes/data/homelab-git`.
+For a rebuild, restore them privately with the checkout or generate a new key
+pair, register its public half as a write-enabled deploy key, and restore the
+checkout's `core.sshCommand` with the container paths. The operations playbook
+installs the repository skill when the checkout is present. Delete the deploy
+key in GitHub if Hermes's push access needs to be revoked.
+
+## Alienware power alerts
+
+The existing Hermes job **Alienware power and battery alerts** runs
+`alienware-power-watch.py` once a minute in script-only mode and sends alerts
+to the operator's private Slack DM. The script reads Linux power-supply
+status and emits a message when mains power is disconnected and when the
+battery reaches 20% or lower during that outage. Reconnecting power resets
+both alerts.
+
+The operations playbook installs the script under `/opt/data/scripts` in
+Hermes. When rebuilding from empty Hermes state, recreate the interval job
+with this script and the operator's private Slack destination. The delivery
+destination and prior alert state live in Hermes's private persistent data.

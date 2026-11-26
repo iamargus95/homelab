@@ -61,7 +61,7 @@
     owner: '1000'
     group: '1000'
     mode: '0700'
-  loop: [homelab-ops, skills, skills/homelab-ops]
+  loop: [homelab-ops, scripts, skills, skills/homelab-ops]
 
 - name: Generate the dedicated client key
   ansible.builtin.command:
@@ -96,7 +96,7 @@
     group: '1000'
     mode: '0600'
 
-- name: Install Hermes SSH configuration and operations skill
+- name: Install the SSH configuration, operations skill, and power watcher
   become_user: "{{ ansible_user }}"
   ansible.builtin.copy:
     src: "{{ item.src }}"
@@ -107,6 +107,28 @@
   loop:
     - {src: ssh_config, dest: homelab-ops/ssh_config}
     - {src: SKILL.md, dest: skills/homelab-ops/SKILL.md}
+    - {src: alienware-power-watch.py, dest: scripts/alienware-power-watch.py}
+
+- name: Check for the provisioned homelab repository checkout
+  ansible.builtin.stat:
+    path: /opt/hermes/data/workspace/homelab/.git
+  register: hermes_ops_repo_checkout
+
+- name: Install the homelab repository skill when the checkout exists
+  when: hermes_ops_repo_checkout.stat.isdir | default(false)
+  become_user: "{{ ansible_user }}"
+  block:
+    - name: Create the repository skill directory
+      ansible.builtin.file:
+        path: /opt/hermes/data/skills/homelab-repo
+        state: directory
+        mode: '0700'
+
+    - name: Install the repository skill
+      ansible.builtin.copy:
+        src: repo-SKILL.md
+        dest: /opt/hermes/data/skills/homelab-repo/SKILL.md
+        mode: '0600'
 
 - name: Verify the running gateway can use the read-only action
   ansible.builtin.command:

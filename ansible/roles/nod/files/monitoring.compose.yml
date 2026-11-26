@@ -1,0 +1,10 @@
+services:
+  server:
+    networks:
+      monitoring:
+        aliases: [nod-assistant]
+
+networks:
+  monitoring:
+    external: true
+    name: uptime-kuma_default

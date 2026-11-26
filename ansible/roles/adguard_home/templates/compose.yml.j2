@@ -1,0 +1,18 @@
+services:
+  adguard-home:
+    image: adguard/adguardhome:v1.0.0@sha256:f00a586f0d1caa74f149340bfb225014960310488ffa838406b89256900a96c2
+    ports:
+      - "{{ adguard_web_bind }}:3080:3000/tcp"
+{% if adguard_publish_dns %}
+      - "{{ ansible_host }}:53:53/tcp"
+      - "{{ ansible_host }}:53:53/udp"
+{% endif %}
+    volumes:
+      - ./config:/opt/adguardhome/conf
+      - ./work:/opt/adguardhome/work
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

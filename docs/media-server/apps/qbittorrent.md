@@ -32,11 +32,13 @@ The owning service definition is in [`compose.yml.j2`](../../../ansible/roles/me
 
 ## Normal use
 
+qBittorrent's global share ratio is **0** with the **Stop** action. Sonarr, Radarr, and Lidarr have Completed Download Handling and Remove Completed enabled, so they can remove managed torrents after a successful import. The global stop applies to downloads using the default share limits. A manual torrent outside an ARR-managed category will stop at completion and needs to be removed separately.
+
 Watch Progress, State, Seeds/Peers and transfer speed. The first repaired request queued 13 torrents covering 40 Sonarr episode rows; three transfers were active and the others queued. This was a snapshot, not a configured concurrency guarantee or final completion report.
 
 ## Troubleshooting and limitations
 
-Queued is different from stalled or metadata-fetching. Check active limits, peers and actual received bytes before assuming a failure. Download completion is followed by ARR import; keep seeding requirements in mind before deleting files. Large memory.current readings can include downloaded-file cache; see the working-estimate column in Resources.
+Queued is different from stalled or metadata-fetching. Check active limits, peers and actual received bytes before assuming a failure. If a completed torrent remains in qBittorrent, check its ARR import status before touching the download files. Large memory.current readings can include downloaded-file cache; see the working-estimate column in Resources.
 
 ```bash
 ssh -t alienware 'sudo docker compose -f /opt/media-stack/compose.yml logs --tail 100 qbittorrent'

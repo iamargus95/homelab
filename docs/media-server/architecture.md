@@ -40,7 +40,7 @@ SABnzbd is deployed with persistent state, but no Usenet account or active ARR d
 | --- | --- | --- | --- |
 | Intel SSD, 128 GB nominal | `/dev/sdb2` | ext4 `/` | Ubuntu, Docker images/writable layers, `/opt/media-stack/config`, Jellyfin cache |
 | HGST HDD, 1 TB nominal | `/dev/sda` | Whole-device ext4 `/srv/media` | All downloads and final media libraries |
-| WD Blue SN570 NVMe, 500 GB nominal | `/dev/nvme0n1` | Whole-device ext4 `/srv/ssd` | Reserved empty; filesystem metadata/`lost+found` only |
+| WD Blue SN570 NVMe, 500 GB nominal | `/dev/nvme0n1` | Whole-device ext4 `/srv/ssd` | Jellyfin temporary streaming segments |
 
 The Ansible defaults identify the two data disks by `/dev/disk/by-id` serial paths. `/etc/fstab` mounts their filesystem UUIDs, so Linux device renumbering does not change the target. The operating-system disk is not an initialization target. Filesystems use `noatime`; data-disk ext4 initialization used zero reserved-block percentage.
 
@@ -48,7 +48,7 @@ The Ansible defaults identify the two data disks by `/dev/disk/by-id` serial pat
 /opt/media-stack/                 # boot SSD
   compose.yml
   config/<app>/                  # databases, settings, metadata
-  cache/jellyfin/                 # disposable cache/transcodes
+  cache/jellyfin/                 # general Jellyfin cache
   admin-credentials.json          # private; do not commit
   .homarr.env                    # private encryption key; do not commit
   .configured-*                  # first-run completion markers
@@ -60,7 +60,8 @@ The Ansible defaults identify the two data disks by `/dev/disk/by-id` serial pat
     incomplete/ complete/
   library/
     tv/ movies/ music/
-/srv/ssd/                        # extra NVMe: no app data
+/srv/ssd/                        # NVMe
+  jellyfin/transcodes/            # disposable streaming segments
 ```
 
 The category subdirectories are prepared, but live qBittorrent transfers were observed saving to `/data/downloads/torrents`, not necessarily the category subdirectories. Both locations map to the same HDD. Changing a category alone does not guarantee that an existing torrent moves.
@@ -69,7 +70,7 @@ The category subdirectories are prepared, but live qBittorrent transfers were ob
 
 Sonarr, Radarr, Lidarr, Bazarr, qBittorrent and SABnzbd each receive one common bind mount: `/srv/media` on the host becomes `/data` in the container. This preserves a single filesystem boundary for downloads and libraries. Sonarr's hardlink test passed as UID/GID `1000:1000`; completed downloads can be linked into the library without a second complete media copy. Directory ownership is UID/GID 1000 and mode `2775`; LinuxServer images use `UMASK=002`.
 
-Jellyfin gets only `/srv/media/library:/media:ro`, plus writable boot-SSD config/cache directories. Homarr, Seerr and Prowlarr do not mount the HDD library. Persistent media-app state is a bind mount under `/opt/media-stack/config`.
+Jellyfin mounts the read-only HDD libraries, writable config and cache on the boot SSD, and the dedicated transcode directory on the NVMe. Homarr, Seerr and Prowlarr do not mount the HDD library. Persistent media-app state is a bind mount under `/opt/media-stack/config`.
 
 Uptime Kuma has its own Compose project and boot-SSD data directory `/opt/uptime-kuma/data`. It reaches the media apps through their existing LAN endpoints; it has no media mount or Docker socket. The official Hermes container uses its own project at `/opt/hermes`, maps its runtime user to UID/GID 1000, and stores state in `/opt/hermes/data`. Linux host networking supports its bearer-protected API on loopback `8642` and SSH-forwarded login callbacks. It has no host-home, media or Docker-socket mount. It uses the ChatGPT/Codex provider after the user signs in. Neither addition uses the extra NVMe or receives a GPU device.
 

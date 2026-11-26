@@ -29,7 +29,9 @@ The owning service definition is in [`compose.yml.j2`](../../../ansible/roles/me
 
 ## Connections and paths
 
-`/srv/media/library:/media:ro` provides the HDD libraries. `/opt/media-stack/cache/jellyfin:/cache` provides writable cache/transcode storage on the boot SSD. Seerr and Homarr connect to Jellyfin. The NVIDIA GPU is not passed through.
+`/srv/media/library:/media:ro` provides the HDD libraries. General cache stays on the boot SSD under `/opt/media-stack/cache/jellyfin`. A separate bind mount maps `/srv/ssd/jellyfin/transcodes` on the NVMe to `/cache/transcodes` for temporary streaming segments. Seerr and Homarr connect to Jellyfin. The NVIDIA GPU is not passed through.
+
+**Throttle Transcodes** and **Delete segments** are enabled in Dashboard → Playback → Transcoding. The settings use Jellyfin's existing 180-second throttle delay and 720-second segment retention. [Jellyfin segment deletion](https://jellyfin.org/posts/jellyfin-release-10.9.0/)
 
 ## Normal use
 

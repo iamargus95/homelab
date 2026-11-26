@@ -13,6 +13,11 @@ services:
       - {{ media_root }}/config/jellyfin:/config
       - {{ media_root }}/cache/jellyfin:/cache
       - type: bind
+        source: {{ media_jellyfin_transcodes }}
+        target: /cache/transcodes
+        bind:
+          create_host_path: false
+      - type: bind
         source: /srv/media/library
         target: /media
         read_only: true

@@ -3,6 +3,7 @@ media_initialize_disks: false
 media_lan_address: "{{ ansible_host }}"
 media_bind_address: "{{ media_lan_address if media_bootstrap_completed.stat.exists else '127.0.0.1' }}"
 media_root: /opt/media-stack
+media_jellyfin_transcodes: /srv/ssd/jellyfin/transcodes
 media_uid: 1000
 media_gid: 1000
 media_timezone: Asia/Kolkata

@@ -1,0 +1,116 @@
+---
+- name: Create Arr Dashboard state directories
+  ansible.builtin.file:
+    path: "{{ arr_dashboard_root }}/{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0750'
+  loop: ['', config]
+
+- name: Check dashboard onboarding state
+  ansible.builtin.stat:
+    path: "{{ arr_dashboard_root }}/.configured"
+  register: arr_dashboard_configured
+
+- name: Write Arr Dashboard Compose definition
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ arr_dashboard_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  vars:
+    arr_dashboard_bind_address: "{{ ansible_host if arr_dashboard_configured.stat.exists else '127.0.0.1' }}"
+
+- name: Start Arr Dashboard
+  community.docker.docker_compose_v2:
+    project_src: "{{ arr_dashboard_root }}"
+    state: present
+    pull: missing
+    wait: true
+    wait_timeout: 180
+
+- name: Configure dashboard credentials, services and queue cleanup
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      bootstrap.py {{ arr_dashboard_root }} {{ ansible_host }}
+      http://{{ ansible_host if arr_dashboard_configured.stat.exists else '127.0.0.1' }}:{{ arr_dashboard_port }}
+    executable: python3
+  register: arr_dashboard_bootstrap
+  changed_when: "'changed=true' in arr_dashboard_bootstrap.stdout"
+
+- name: Publish the configured dashboard on the LAN
+  when: not arr_dashboard_configured.stat.exists
+  block:
+    - name: Write the LAN listener configuration
+      ansible.builtin.template:
+        src: compose.yml.j2
+        dest: "{{ arr_dashboard_root }}/compose.yml"
+        owner: root
+        group: root
+        mode: '0644'
+      vars:
+        arr_dashboard_bind_address: "{{ ansible_host }}"
+
+    - name: Apply the LAN listener configuration
+      community.docker.docker_compose_v2:
+        project_src: "{{ arr_dashboard_root }}"
+        state: present
+        wait: true
+        wait_timeout: 180
+
+- name: Verify dashboard health over the LAN
+  ansible.builtin.uri:
+    url: "{{ arr_dashboard_url }}/health"
+    use_proxy: false
+    return_content: true
+  register: arr_dashboard_health
+  failed_when: arr_dashboard_health.json.status | default('') != 'ok'
+
+- name: Read existing Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: arr_dashboard_kuma_credentials
+  no_log: true
+
+- name: Verify dashboard from Kuma and add the health monitor
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (arr_dashboard_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': {'name': 'Arr Dashboard', 'url': arr_dashboard_url + '/health',
+                               'headers': {}}})
+         | to_json }}
+  register: arr_dashboard_kuma_monitor
+  changed_when: >-
+    arr_dashboard_kuma_monitor.rc == 0 and
+    (arr_dashboard_kuma_monitor.stdout | from_json).monitors_created > 0
+  no_log: true
+  ignore_errors: true
+
+- name: Add the dashboard shortcut to the private Homarr board
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      {{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py
+      --arr-dashboard-url {{ arr_dashboard_url }}
+    executable: python3
+  register: arr_dashboard_homarr
+  changed_when: "'\"added_tiles\": []' not in arr_dashboard_homarr.stdout"
+
+- name: Confirm the Kuma monitor was configured
+  ansible.builtin.assert:
+    that: arr_dashboard_kuma_monitor is succeeded
+    fail_msg: The Arr Dashboard Kuma monitor could not be verified.

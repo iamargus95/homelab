@@ -1,0 +1,6 @@
+---
+- name: Deploy Arr Dashboard and its homelab integrations
+  hosts: media_servers
+  become: true
+  roles:
+    - arr_dashboard

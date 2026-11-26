@@ -1,0 +1,130 @@
+---
+- name: Create the private AdGuard Home data directories
+  ansible.builtin.file:
+    path: "/opt/adguard-home/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: ['', config, work]
+
+- name: Check whether AdGuard Home has been provisioned
+  ansible.builtin.stat:
+    path: /opt/adguard-home/.configured
+  register: adguard_configured
+
+- name: Write the AdGuard Home Compose definition
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: /opt/adguard-home/compose.yml
+    mode: '0600'
+  vars:
+    adguard_publish_dns: "{{ adguard_configured.stat.exists }}"
+    adguard_web_bind: "{{ ansible_host if adguard_publish_dns else '127.0.0.1' }}"
+
+- name: Start AdGuard Home
+  community.docker.docker_compose_v2:
+    project_src: /opt/adguard-home
+    state: present
+    pull: missing
+    wait: true
+
+- name: Wait for the web interface
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host if adguard_configured.stat.exists else '127.0.0.1' }}"
+    port: 3080
+    timeout: 60
+
+- name: Configure AdGuard Home with the shared credentials file
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      bootstrap.py http://{{ ansible_host if adguard_configured.stat.exists else '127.0.0.1' }}:3080
+    executable: python3
+  register: adguard_setup
+  changed_when: "'changed=true' in adguard_setup.stdout"
+
+- name: Publish the configured service on the LAN
+  when: not adguard_configured.stat.exists
+  block:
+    - name: Write the LAN listener configuration
+      ansible.builtin.template:
+        src: compose.yml.j2
+        dest: /opt/adguard-home/compose.yml
+        mode: '0600'
+      vars:
+        adguard_publish_dns: true
+        adguard_web_bind: "{{ ansible_host }}"
+
+    - name: Enable LAN DNS and the authenticated web interface
+      community.docker.docker_compose_v2:
+        project_src: /opt/adguard-home
+        state: present
+        wait: true
+
+- name: Verify DNS resolution across UDP and TCP
+  ansible.builtin.command:
+    argv: [dig, "@{{ ansible_host }}", "{{ item }}", example.org, A, +short, +time=2, +tries=1]
+  loop: [+notcp, +tcp]
+  register: adguard_dns_result
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: adguard_dns_result.rc == 0 and adguard_dns_result.stdout is match('^[0-9]+\\.')
+
+- name: Verify the default filter blocks a known advertising hostname
+  ansible.builtin.command:
+    argv: [dig, "@{{ ansible_host }}", ad.doubleclick.net, A, +short, +time=2, +tries=1]
+  register: adguard_block_result
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: adguard_block_result.rc == 0 and adguard_block_result.stdout | trim == '0.0.0.0'
+
+- name: Record successful DNS commissioning
+  ansible.builtin.file:
+    path: /opt/adguard-home/.configured
+    state: touch
+    mode: '0600'
+    access_time: preserve
+    modification_time: preserve
+
+- name: Add the AdGuard Home shortcut to the private Homarr board
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      {{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py
+      --adguard-home-url http://{{ ansible_host }}:3080
+    executable: python3
+  register: adguard_homarr
+  changed_when: "'\"added_tiles\": []' not in adguard_homarr.stdout"
+
+- name: Read Uptime Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: adguard_kuma_credentials
+  no_log: true
+
+- name: Add or verify the AdGuard Home DNS monitor in Uptime Kuma
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (adguard_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': {'name': 'AdGuard Home', 'type': 'dns',
+                               'hostname': 'example.org', 'resolver': ansible_host}})
+         | to_json }}
+  register: adguard_kuma_monitor
+  changed_when: >-
+    adguard_kuma_monitor.rc == 0 and
+    (adguard_kuma_monitor.stdout | from_json).monitors_created > 0
+  no_log: true

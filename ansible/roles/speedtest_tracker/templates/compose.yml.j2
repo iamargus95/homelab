@@ -1,0 +1,24 @@
+name: speedtest-tracker
+services:
+  speedtest-tracker:
+    image: {{ speedtest_tracker_image | to_json }}
+    env_file: [.env]
+    environment:
+      PUID: "{{ speedtest_tracker_uid }}"
+      PGID: "{{ speedtest_tracker_gid }}"
+      TZ: Asia/Kolkata
+      DISPLAY_TIMEZONE: Asia/Kolkata
+      APP_URL: {{ speedtest_tracker_url | to_json }}
+      DB_CONNECTION: sqlite
+      PUBLIC_DASHBOARD: 'false'
+      SPEEDTEST_SCHEDULE: {{ speedtest_tracker_schedule | to_json }}
+    ports:
+      - "{{ ansible_host }}:{{ speedtest_tracker_port }}:80"
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

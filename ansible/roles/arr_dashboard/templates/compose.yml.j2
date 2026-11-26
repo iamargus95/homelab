@@ -1,0 +1,19 @@
+services:
+  arr-dashboard:
+    image: "{{ arr_dashboard_image }}"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Kolkata
+    ports:
+      - "{{ arr_dashboard_bind_address }}:{{ arr_dashboard_port }}:3000"
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+    stop_grace_period: 120s
+    mem_limit: 3g
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

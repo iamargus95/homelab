@@ -1,0 +1,6 @@
+---
+- name: Deploy the Nod assistant and its homelab integrations
+  hosts: media_servers
+  become: true
+  roles:
+    - nod

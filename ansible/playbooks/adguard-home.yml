@@ -1,0 +1,7 @@
+---
+- name: Deploy AdGuard Home DNS filtering on the LAN
+  hosts: media_servers
+  become: true
+  gather_facts: false
+  roles:
+    - adguard_home

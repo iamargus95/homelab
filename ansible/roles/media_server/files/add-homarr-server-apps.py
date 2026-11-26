@@ -13,6 +13,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--hermes-url', default='http://192.168.1.243:9120')
     parser.add_argument('--kuma-url', default='http://192.168.1.243:3001')
+    parser.add_argument('--nod-url', help='Add only the Nod shortcut at this address')
+    parser.add_argument('--arr-dashboard-url', help='Add only the Arr Dashboard shortcut at this address')
+    parser.add_argument('--adguard-home-url', help='Add only the AdGuard Home shortcut at this address')
+    parser.add_argument('--speedtest-tracker-url', help='Add only the Speedtest Tracker shortcut at this address')
     parser.add_argument('--board', default='homelab')
     parser.add_argument('--kuma-only', action='store_true')
     args = parser.parse_args()
@@ -55,14 +59,35 @@ def main():
         raise RuntimeError('Expected the private Homarr board')
     original_items = {item['id']: item for item in board['items']}
     apps = trpc('app.all')
-    services = [
-        ('Uptime Kuma', args.kuma_url, 'Availability monitoring for the media services and SSH',
-         'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/svg/uptime-kuma.svg'),
-    ]
-    if not args.kuma_only:
-        services.append(('Hermes Agent', args.hermes_url,
-                         'Password-protected Hermes workspace; ChatGPT/Codex provider',
-                         'https://raw.githubusercontent.com/NousResearch/hermes-agent/v0.23.3/apps/desktop/assets/appx/Square150x150Logo.png'))
+    if args.speedtest_tracker_url:
+        services = [
+            ('Speedtest Tracker', args.speedtest_tracker_url, 'Internet download, upload, and latency history',
+             'https://raw.githubusercontent.com/alexjustesen/speedtest-tracker/v1.15.1/public/favicon.ico'),
+        ]
+    elif args.adguard_home_url:
+        services = [
+            ('AdGuard Home', args.adguard_home_url, 'DNS ad and tracker filtering',
+             'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/svg/adguard-home.svg'),
+        ]
+    elif args.arr_dashboard_url:
+        services = [
+            ('Arr Dashboard', args.arr_dashboard_url, 'Media queues, imports, and Jellyfin statistics',
+             'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/svg/sonarr.svg'),
+        ]
+    elif args.nod_url:
+        services = [
+            ('Nod', args.nod_url, 'Personal assistant. Open the SSH tunnel before using this shortcut.',
+             'https://raw.githubusercontent.com/n8n-io/nod/ee2768c0920fb6d11240371f25c0ba7b9dc539d6/docs/public/favicon.svg'),
+        ]
+    else:
+        services = [
+            ('Uptime Kuma', args.kuma_url, 'Availability monitoring for the media services and SSH',
+             'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/svg/uptime-kuma.svg'),
+        ]
+        if not args.kuma_only:
+            services.append(('Hermes Agent', args.hermes_url,
+                             'Password-protected Hermes workspace; ChatGPT/Codex provider',
+                             'https://raw.githubusercontent.com/NousResearch/hermes-agent/v0.23.3/apps/desktop/assets/appx/Square150x150Logo.png'))
     added = []
     for name, href, description, icon in services:
         existing = [app for app in apps if app['name'].casefold() == name.casefold()]

@@ -1,0 +1,6 @@
+---
+speedtest_tracker_root: /opt/speedtest-tracker
+speedtest_tracker_port: 8765
+speedtest_tracker_image: lscr.io/linuxserver/speedtest-tracker:v1.15.1-ls183
+speedtest_tracker_url: "http://{{ ansible_host }}:{{ speedtest_tracker_port }}"
+speedtest_tracker_schedule: '17 */6 * * *'

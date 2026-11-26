@@ -1,0 +1,6 @@
+---
+- name: Track internet speed and uptime on the Alienware
+  hosts: media_servers
+  become: true
+  roles:
+    - speedtest_tracker
