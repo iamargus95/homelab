@@ -1,0 +1,20 @@
+name: listenarr
+services:
+  listenarr:
+    image: {{ listenarr_image | to_json }}
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      UMASK: "022"
+      TZ: Asia/Kolkata
+    ports:
+      - "{{ listenarr_bind_address }}:{{ listenarr_port }}:4545"
+    volumes:
+      - ./config:/app/config
+      - "{{ listenarr_media_mount }}:/data"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

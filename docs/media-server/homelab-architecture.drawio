@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" compressed="false">
+  <diagram id="alienware-network" name="Homelab architecture">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1320" pageHeight="780" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Alienware homelab architecture" style="text;strokeColor=none;fillColor=none;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Helvetica;fontSize=32;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="42" y="23" width="1218" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Private remote access, LAN services, and storage" style="text;strokeColor=none;fillColor=none;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Helvetica;fontSize=18;fontColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="44" y="69" width="1216" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="host" value="" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#F8FAFC;strokeColor=#94A3B8;container=0;" vertex="1" parent="1">
+          <mxGeometry x="783" y="117" width="491" height="591" as="geometry" />
+        </mxCell>
+        <mxCell id="host-title" value="Alienware 15 R4  ·  Ubuntu 26.04  ·  192.168.1.243" style="text;strokeColor=none;fillColor=none;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Helvetica;fontSize=17;fontStyle=1;fontColor=#1E293B;" vertex="1" parent="1">
+          <mxGeometry x="800" y="125" width="454" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="remote" value="Remote Mac or phone&#10;Tailscale client" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#ECFDF5;strokeColor=#059669;" vertex="1" parent="1">
+          <mxGeometry x="44" y="180" width="214" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="control" value="Tailscale coordination&#10;Encrypted relay when needed" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#F0FDFA;strokeColor=#5EEAD4;" vertex="1" parent="1">
+          <mxGeometry x="381" y="265" width="256" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="router" value="tailscaled&#10;Approved route: 192.168.1.243/32" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#ECFDF5;strokeColor=#059669;" vertex="1" parent="1">
+          <mxGeometry x="810" y="180" width="427" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="local" value="Home LAN devices&#10;Browser, Jellyfin client, SSH" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#EFF6FF;strokeColor=#60A5FA;" vertex="1" parent="1">
+          <mxGeometry x="44" y="392" width="214" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="app" value="LAN endpoints on 192.168.1.243&#10;SSH 22  ·  Jellyfin 8096  ·  Homarr 7575&#10;Media automation, DNS and monitoring" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#EFF6FF;strokeColor=#60A5FA;" vertex="1" parent="1">
+          <mxGeometry x="810" y="370" width="427" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="public" value="Public internet client&#10;Jellyfin public hostname" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#FFF7ED;strokeColor=#FB923C;" vertex="1" parent="1">
+          <mxGeometry x="44" y="564" width="214" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="edge" value="Cloudflare edge&#10;Public request returns HTTP 403" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#FFF7ED;strokeColor=#FB923C;" vertex="1" parent="1">
+          <mxGeometry x="381" y="564" width="256" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cloudflared" value="cloudflared&#10;Outbound connector" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#FFF7ED;strokeColor=#FB923C;" vertex="1" parent="1">
+          <mxGeometry x="810" y="564" width="181" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" value="Host storage&#10;Boot SSD · app state&#10;HDD · media and downloads&#10;NVMe · Jellyfin transcodes" style="rounded=1;arcSize=14;whiteSpace=wrap;html=0;fontFamily=Helvetica;fontSize=17;fontColor=#172554;spacing=8;strokeWidth=1.4;fillColor=#F1F5F9;strokeColor=#94A3B8;" vertex="1" parent="1">
+          <mxGeometry x="1014" y="544" width="223" height="119" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" value="The Tailscale route covers one server. Existing app logins and SSH keys still apply." style="text;strokeColor=none;fillColor=none;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Helvetica;fontSize=16;fontColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="44" y="727" width="1215" height="31" as="geometry" />
+        </mxCell>
+        <mxCell id="vpn" value="Encrypted WireGuard data path" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#059669;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="remote" target="router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="client-control" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#0F766E;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="remote" target="control">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="151" y="299" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="host-control" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#0F766E;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=6 4;exitX=0.1;exitY=1;entryX=1;entryY=0.5;" edge="1" parent="1" source="router" target="control">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="855" y="299" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="route" value="Approved host route" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#059669;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;exitX=0.62;exitY=1;entryX=0.62;entryY=0;" edge="1" parent="1" source="router" target="app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lan" value="Existing LAN addresses" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#2563EB;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.48;entryX=0;entryY=0.5;" edge="1" parent="1" source="local" target="app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="blocked" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#EA580C;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="public" target="edge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="connector" value="Outbound tunnel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#EA580C;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=6 4;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="cloudflared" target="edge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mounts" value="App data and media" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#64748B;strokeWidth=2;endArrow=block;endFill=1;fontFamily=Helvetica;fontSize=13;fontColor=#334155;labelBackgroundColor=#FFFFFF;exitX=0.74;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="app" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

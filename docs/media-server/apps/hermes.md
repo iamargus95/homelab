@@ -83,7 +83,7 @@ ssh -t alienware 'hermes doctor'
 
 Verified gateway `/health` returns `200`; `/v1/models` rejects absent/invalid bearer keys with `401` and returns `200` with the generated key. These are runtime/authentication checks, not an authenticated model-inference test. Its listener is on loopback, not the LAN. No full reboot test was performed.
 
-The [Docker role](../../../ansible/roles/hermes_docker/tasks/main.yml) creates private state, configures the Codex provider and API key, renders Compose and installs the CLI wrapper. The CLI wrapper uses the operator's sudo credentials. The separate operations role grants only two fixed commands to its dedicated SSH account. Configuration and auth use mode `0600`; the data directory uses `0700`. Back up state privately. Container logs rotate at 10 MB with three retained files.
+The [Docker role](../../../ansible/roles/hermes_docker/tasks/main.yml) creates private state, configures the Codex provider and API key, renders Compose and installs the CLI wrapper. The CLI wrapper uses the operator's sudo credentials. The separate operations role grants fixed diagnostic actions and an approved Jellyfin restart to its dedicated SSH account. Configuration and auth use mode `0600`; the data directory uses `0700`. Back up state privately. Container logs rotate at 10 MB with three retained files.
 
 The official image includes its dependencies and avoids rebuilding the Python runtime over this network's slow PyPI route. Slack DMs are working. Scheduled reports have not been configured. CPU and memory are shared without explicit quotas; see [resources](../resources.md).
 
@@ -119,8 +119,16 @@ ansible-playbook -i inventory/alienware.yml playbooks/hermes-ops.yml --ask-becom
 
 The playbook verifies the read-only action from inside the running Hermes
 container. In your private Hermes Slack DM, ask it to use the `homelab-ops`
-skill to check the Alienware and Jellyfin. The status action reports host
-uptime, memory and storage, media container states, and Jellyfin HTTP health.
+skill to check the Alienware or investigate a service error. The status action
+reports host uptime, memory, storage, monitored container states, and Jellyfin
+HTTP health.
+
+Ask for an excerpt from a named service, such as `logs jellyfin`. The allowlist
+covers the monitored application containers, including Kuma, and the SSH,
+Docker, and kernel journals. WAN probes are handled by Kuma. Each excerpt is
+limited to the last two hours, up to 120 lines and 24 KB before redaction.
+The helper removes URL queries and lines matching common credential patterns.
+It accepts service names and reads the selected journal or container log.
 
 For a restart, approve one action on the Alienware and then tell Hermes
 to execute it in the Slack DM within five minutes:

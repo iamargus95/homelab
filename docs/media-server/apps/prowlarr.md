@@ -24,6 +24,21 @@ The first-run script creates application connections for Sonarr, Radarr and Lida
 
 After user approval, the built-in public definitions Knaben, TorrentsCSV and YTS passed their tests and were enabled using the Standard sync profile. Knaben synced to all three library managers; YTS synced to Radarr. TorrentsCSV remained available in Prowlarr only under the observed app/category compatibility rules. This later indexer selection is persisted in appdata, not recreated by `bootstrap.py`.
 
+On 26 November 2026, five more public sources passed Prowlarr's connection
+test and returned results after being enabled. Prowlarr synchronized the
+following sources with RSS and automatic search enabled:
+
+| App | New sources |
+| --- | --- |
+| Sonarr | The Pirate Bay, SubsPlease, Anime Tosho, Shana Project |
+| Lidarr | The Pirate Bay, Nipponsei |
+| Radarr | Existing Knaben and YTS sources |
+
+A movie-title search on The Pirate Bay returned movie results in Prowlarr,
+but Radarr's validation returned no results in the configured movie categories
+and rejected the sync. Prowlarr also reported an existing TorrentsCSV
+availability warning. These choices are stored in live Prowlarr appdata.
+
 The owning service definition is in [`compose.yml.j2`](../../../ansible/roles/media_server/templates/compose.yml.j2); common deployment steps are in [`tasks/main.yml`](../../../ansible/roles/media_server/tasks/main.yml). See [Setup](../setup.md) for first-run script ownership and settings that require appdata restoration/manual follow-up.
 
 ## Connections and paths

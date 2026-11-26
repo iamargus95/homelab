@@ -1,0 +1,84 @@
+---
+- name: Require Ubuntu for the Tailscale APT repository
+  ansible.builtin.assert:
+    that: ansible_facts.distribution == 'Ubuntu'
+
+- name: Install the official Tailscale repository signing key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts.distribution_release }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable the Tailscale stable APT repository
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts.distribution_release }}.tailscale-keyring.list"
+    dest: /etc/apt/sources.list.d/tailscale.list
+    owner: root
+    group: root
+    mode: '0644'
+  register: tailscale_apt_source
+
+- name: Install the Tailscale package
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ 0 if tailscale_apt_source.changed else 3600 }}"
+
+- name: Persist IPv4 forwarding for the host route
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_file: /etc/sysctl.d/99-tailscale.conf
+    sysctl_set: true
+    state: present
+
+- name: Start Tailscale and enable it at boot
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Check whether the host has enrolled in Tailscale
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: >-
+    tailscale_status.rc not in [0, 1] or tailscale_status.stdout | trim == ''
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Configure an enrolled Tailscale host
+  when:
+    - not ansible_check_mode
+    - (tailscale_status.stdout | from_json).BackendState == 'Running'
+  block:
+    - name: Read current Tailscale preferences
+      ansible.builtin.command: tailscale debug prefs
+      register: tailscale_preferences
+      changed_when: false
+      no_log: true
+
+    - name: Advertise the single-host route and allow incoming tailnet traffic
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - set
+          - "--advertise-routes={{ tailscale_advertised_route }}"
+          - "--shields-up=false"
+      vars:
+        tailscale_current: "{{ tailscale_preferences.stdout | from_json }}"
+      when: >-
+        tailscale_current.AdvertiseRoutes != [tailscale_advertised_route]
+        or tailscale_current.ShieldsUp
+
+- name: Show the manual enrollment step for a fresh host
+  ansible.builtin.debug:
+    msg: >-
+      Review the tailnet access policy, enroll with sudo tailscale up --shields-up,
+      then rerun this playbook. Approve the advertised host route in the Tailscale admin console.
+  when:
+    - not ansible_check_mode
+    - (tailscale_status.stdout | from_json).BackendState != 'Running'

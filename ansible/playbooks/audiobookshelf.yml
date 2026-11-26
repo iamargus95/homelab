@@ -1,0 +1,6 @@
+---
+- name: Install Audiobookshelf on the Alienware
+  hosts: media_servers
+  become: true
+  roles:
+    - audiobookshelf

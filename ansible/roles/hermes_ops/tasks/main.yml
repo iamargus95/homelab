@@ -44,7 +44,7 @@
     - {src: hermes-homelab, dest: /usr/local/sbin/hermes-homelab}
     - {src: dispatch, dest: /usr/local/bin/hermes-homelab-dispatch}
 
-- name: Grant access to the two fixed sudo actions
+- name: Grant access to the fixed diagnostics and approved restart actions
   ansible.builtin.copy:
     src: sudoers
     dest: /etc/sudoers.d/hermes-homelab
@@ -130,7 +130,7 @@
         dest: /opt/hermes/data/skills/homelab-repo/SKILL.md
         mode: '0600'
 
-- name: Verify the running gateway can use the read-only action
+- name: Verify the running gateway can read service status
   ansible.builtin.command:
     argv:
       - /usr/bin/docker
@@ -143,5 +143,28 @@
       - /opt/data/homelab-ops/ssh_config
       - alienware-ops
       - status
+  changed_when: false
+  when: not ansible_check_mode
+  register: hermes_ops_status
+
+- name: Verify the running gateway can read the allowed log source
+  ansible.builtin.command:
+    argv: [/usr/bin/docker, exec, --user, '1000:1000', hermes-agent, ssh, -F,
+           /opt/data/homelab-ops/ssh_config, alienware-ops, logs, "{{ item }}"]
+  loop: [jellyfin, ssh, uptime-kuma]
+  when:
+    - not ansible_check_mode
+    - item != 'uptime-kuma' or 'uptime-kuma/uptime-kuma:' in hermes_ops_status.stdout
+  changed_when: false
+  no_log: true
+
+- name: Verify the dispatcher rejects files as log targets
+  ansible.builtin.command:
+    argv: [/usr/bin/docker, exec, --user, '1000:1000', hermes-agent, ssh, -F,
+           /opt/data/homelab-ops/ssh_config, alienware-ops, logs, /etc/passwd]
+  register: hermes_ops_rejected
+  failed_when: >-
+    hermes_ops_rejected.rc == 0 or
+    'Available log targets:' not in hermes_ops_rejected.stderr
   changed_when: false
   when: not ansible_check_mode

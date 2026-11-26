@@ -1,1 +1,1 @@
-hermes-ops ALL=(root) NOPASSWD: /usr/local/sbin/hermes-homelab status, /usr/local/sbin/hermes-homelab restart-jellyfin
+hermes-ops ALL=(root) NOPASSWD: /usr/local/sbin/hermes-homelab status, /usr/local/sbin/hermes-homelab logs, /usr/local/sbin/hermes-homelab restart-jellyfin

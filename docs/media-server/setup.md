@@ -31,6 +31,12 @@ ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
 
 Check the host IP, UID/GID, Intel render-device identity and data-disk serial paths before using this role on changed hardware. `bootstrap.py` assumes UID/GID 1000 and `/opt/media-stack`; Homarr bootstrap also hardcodes the current LAN IP. Editing only the inventory is not sufficient to migrate this setup to another address or directory.
 
+## Private remote access
+
+Use the [Tailscale setup guide](tailscale.md) to prepare the host and approve the
+single-host route. The dedicated playbook does not require the media stack to be
+redeployed.
+
 ## Disk preparation
 
 The initial deployment was explicitly authorized to format both blank extra drives. They now have ext4 filesystems and must not be reinitialized. Normal deployment uses the default `media_initialize_disks: false`.

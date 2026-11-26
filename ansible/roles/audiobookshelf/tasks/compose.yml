@@ -1,0 +1,14 @@
+---
+- name: Write the Audiobookshelf Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ audiobookshelf_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply the Audiobookshelf Compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ audiobookshelf_root }}"
+    state: present
+    pull: missing

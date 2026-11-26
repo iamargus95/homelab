@@ -1,0 +1,20 @@
+name: audiobookshelf
+services:
+  audiobookshelf:
+    image: {{ audiobookshelf_image | to_json }}
+    user: "{{ audiobookshelf_uid }}:{{ audiobookshelf_gid }}"
+    environment:
+      TZ: Asia/Kolkata
+    ports:
+      - "{{ audiobookshelf_bind_address }}:{{ audiobookshelf_port }}:80"
+    volumes:
+      - ./config:/config
+      - ./metadata:/metadata
+      - {{ (audiobookshelf_library_root + '/audiobooks:/audiobooks') | to_json }}
+      - {{ (audiobookshelf_library_root + '/podcasts:/podcasts') | to_json }}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

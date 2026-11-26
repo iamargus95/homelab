@@ -1,0 +1,8 @@
+---
+- name: Configure private Tailscale access to the Alienware
+  hosts: media_servers
+  become: true
+  roles:
+    - role: tailscale
+      vars:
+        tailscale_advertised_route: "{{ ansible_host }}/32"

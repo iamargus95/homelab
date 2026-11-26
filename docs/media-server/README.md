@@ -7,6 +7,7 @@ The standalone Alienware 15 R4 at `192.168.1.243` hosts ten media services, a se
 | [Setup](setup.md) | Prerequisites, deployment order, first-run configuration and manual follow-up |
 | [Architecture and storage](architecture.md) | Request flow, connections, filesystem layout and hardware access |
 | [Resources](resources.md) | Configured limits, measured CPU/RAM/disk use and collection commands |
+| [Private Tailscale access](tailscale.md) | Remote access to the existing app URLs and SSH |
 | [Public Jellyfin access](public-access.md) | Domain, Cloudflare Tunnel, authentication, validation and rollback |
 | [Operations](operations.md) | Status, troubleshooting, updates, backup and recovery |
 | [Changes](changes.md) | What was deployed, configured, verified and left outstanding |
@@ -17,6 +18,8 @@ The standalone Alienware 15 R4 at `192.168.1.243` hosts ten media services, a se
 | --- | --- | --- | --- |
 | Homarr | [Dashboard](http://192.168.1.243:7575/boards/homelab) | Private dashboard and service widgets | [Homarr](apps/homarr.md) |
 | Arr Dashboard | [3000](http://192.168.1.243:3000) | Media administration, provisioned by the standalone playbook | [Arr Dashboard](apps/arr-dashboard.md) |
+| Audiobookshelf | [13378](http://192.168.1.243:13378) | Audiobook and podcast library | [Audiobookshelf](apps/audiobookshelf.md) |
+| Listenarr | [4545](http://192.168.1.243:4545) | Audiobook search, downloads, and completed-file import | [Listenarr](apps/listenarr.md) |
 | Jellyfin | [8096](http://192.168.1.243:8096) | Stream movies, TV and music | [Jellyfin](apps/jellyfin.md) |
 | Seerr | [5055](http://192.168.1.243:5055) | Request content through Sonarr/Radarr | [Seerr](apps/seerr.md) |
 | Sonarr | [8989](http://192.168.1.243:8989) | TV library, searches and imports | [Sonarr](apps/sonarr.md) |

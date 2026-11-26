@@ -1,0 +1,14 @@
+---
+- name: Write the Listenarr Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ listenarr_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply the Listenarr Compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ listenarr_root }}"
+    state: present
+    pull: missing

@@ -1,16 +1,18 @@
 # Architecture and storage
 
-[Documentation home](README.md) · [Resources](resources.md)
+[Documentation home](README.md) · [Resources](resources.md) · [Editable Draw.io diagram](homelab-architecture.drawio)
 
 ## Request and playback flow
 
 ```mermaid
 flowchart LR
-    RemoteClient --> CloudflareHTTPS[Cloudflare HTTPS]
-    CloudflareHTTPS --> ExistingTunnel[Existing homelab Tunnel]
-    ExistingTunnel --> Jellyfin
+    RemoteClient --> Tailnet[Tailscale host route]
+    Tailnet --> User[LAN app endpoints]
+    PublicClient --> CloudflareHTTPS[Cloudflare HTTPS]
+    CloudflareHTTPS --> Blocked[HTTP 403]
     User --> Homarr
     User --> Seerr
+    User --> Jellyfin
     Seerr --> Sonarr
     Seerr --> Radarr
     Prowlarr --> Sonarr
@@ -80,7 +82,7 @@ Docker's service override at `/etc/systemd/system/docker.service.d/media-storage
 
 Each service has `restart: unless-stopped` and JSON log rotation (`10m`, three files). The Compose project is `media-stack`; the shared default bridge network provides service-name DNS. Browser URLs use the host LAN IP. App-to-app URLs normally use `sonarr:8989`, `radarr:7878`, `prowlarr:9696`, `qbittorrent:8080`, etc. Homarr's integration URLs currently use the LAN IP so the generated app links also work in a browser.
 
-Web ports bind specifically to `192.168.1.243`. The qBittorrent image exposes peer port 6881 internally, but Compose does not publish it on the host. No VPN container or router port-forwarding was set up for this stack. The later [public Jellyfin route](public-access.md) uses the existing Cloudflare Tunnel with HTTPS at the Cloudflare edge and HTTP to the LAN origin. The other app interfaces remain LAN endpoints.
+Web ports bind specifically to `192.168.1.243`. The qBittorrent image exposes peer port 6881 internally, but Compose does not publish it on the host. The host Tailscale service advertises only `192.168.1.243/32`, so private clients can reuse the LAN-bound app links without router port forwarding. The [Tailscale guide](tailscale.md) covers the route, policy and validation. The [Cloudflare public hostname](public-access.md) currently returns HTTP 403.
 
 ## Hardware acceleration
 

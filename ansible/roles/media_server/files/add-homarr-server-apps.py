@@ -17,6 +17,8 @@ def main():
     parser.add_argument('--arr-dashboard-url', help='Add only the Arr Dashboard shortcut at this address')
     parser.add_argument('--adguard-home-url', help='Add only the AdGuard Home shortcut at this address')
     parser.add_argument('--speedtest-tracker-url', help='Add only the Speedtest Tracker shortcut at this address')
+    parser.add_argument('--audiobookshelf-url', help='Add only the Audiobookshelf shortcut at this address')
+    parser.add_argument('--listenarr-url', help='Add only the Listenarr shortcut at this address')
     parser.add_argument('--board', default='homelab')
     parser.add_argument('--kuma-only', action='store_true')
     args = parser.parse_args()
@@ -59,7 +61,17 @@ def main():
         raise RuntimeError('Expected the private Homarr board')
     original_items = {item['id']: item for item in board['items']}
     apps = trpc('app.all')
-    if args.speedtest_tracker_url:
+    if args.listenarr_url:
+        services = [
+            ('Listenarr', args.listenarr_url, 'Audiobook requests, downloads, and imports',
+             'https://raw.githubusercontent.com/Listenarrs/Listenarr/v1.10.12-canary/fe/public/favicon-32x32.png'),
+        ]
+    elif args.audiobookshelf_url:
+        services = [
+            ('Audiobookshelf', args.audiobookshelf_url, 'Audiobook and podcast library',
+             'https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/audiobookshelf.svg'),
+        ]
+    elif args.speedtest_tracker_url:
         services = [
             ('Speedtest Tracker', args.speedtest_tracker_url, 'Internet download, upload, and latency history',
              'https://raw.githubusercontent.com/alexjustesen/speedtest-tracker/v1.15.1/public/favicon.ico'),

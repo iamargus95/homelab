@@ -2,7 +2,8 @@
 
 Ubuntu 26.04 LTS on an Alienware 15 R4 serves the homelab at `192.168.1.243`
 over the home network. Ansible manages the Docker Compose deployments.
-The Cloudflare Tunnel connector runs as a systemd user service.
+The Cloudflare Tunnel connector runs as a systemd user service. Tailscale
+provides private remote access to the same Alienware address.
 
 | Deployment | Apps | Compose source |
 | --- | --- | --- |
@@ -14,6 +15,8 @@ The Cloudflare Tunnel connector runs as a systemd user service.
 - [App guides and LAN links](docs/media-server/README.md)
 - [Setup and deployment](docs/media-server/setup.md)
 - [Operations and backups](docs/media-server/operations.md)
+- [Private access with Tailscale](docs/media-server/tailscale.md)
+- [Homelab architecture diagram (Draw.io)](docs/media-server/homelab-architecture.drawio)
 - [Cloudflare Tunnel and Jellyfin ingress](docs/media-server/public-access.md)
 
 ## Deploy from the repository
@@ -33,6 +36,9 @@ ansible-playbook playbooks/nod.yml --ask-become-pass
 ansible-playbook playbooks/arr-dashboard.yml --ask-become-pass
 ansible-playbook playbooks/adguard-home.yml --ask-become-pass
 ansible-playbook playbooks/internet-monitoring.yml --ask-become-pass
+ansible-playbook playbooks/audiobookshelf.yml --ask-become-pass
+ansible-playbook playbooks/listenarr.yml --ask-become-pass
+ansible-playbook playbooks/tailscale.yml --ask-become-pass
 ```
 
 The media playbook manages storage mounts and the media stack. The server-apps

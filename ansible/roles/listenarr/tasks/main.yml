@@ -1,0 +1,118 @@
+---
+- name: Verify the media HDD is mounted
+  ansible.builtin.command:
+    argv: [/usr/bin/findmnt, --mountpoint, "{{ listenarr_media_mount }}", --noheadings]
+  changed_when: false
+  check_mode: false
+
+- name: Verify the existing Audiobookshelf library
+  ansible.builtin.stat:
+    path: "{{ listenarr_media_mount }}/library/audiobooks"
+  register: listenarr_library
+
+- name: Require the Audiobookshelf library before starting Listenarr
+  ansible.builtin.assert:
+    that: listenarr_library.stat.isdir | default(false)
+
+- name: Create the Listenarr project and config directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ listenarr_root }}", owner: root, mode: '0755'}
+    - {path: "{{ listenarr_root }}/config", owner: '1000', mode: '0700'}
+    - {path: "{{ listenarr_media_mount }}/downloads/torrents/audiobooks", owner: '1000', mode: '2775'}
+
+- name: Check Listenarr initialization state
+  ansible.builtin.stat:
+    path: "{{ listenarr_root }}/.configured"
+  register: listenarr_configured
+
+- name: Start Listenarr with its current listener
+  ansible.builtin.include_tasks: compose.yml
+  vars:
+    listenarr_bind_address: "{{ ansible_host if listenarr_configured.stat.exists else '127.0.0.1' }}"
+
+- name: Wait for Listenarr startup
+  ansible.builtin.uri:
+    url: "{{ listenarr_setup_url }}{{ listenarr_ready_path }}"
+    use_proxy: false
+  register: listenarr_ready
+  until: listenarr_ready.status == 200
+  retries: 36
+  delay: 5
+  vars:
+    listenarr_setup_url: "{{ listenarr_url if listenarr_configured.stat.exists else 'http://127.0.0.1:' + (listenarr_port | string) }}"
+
+- name: Configure Listenarr authentication, qBittorrent, Prowlarr and the library
+  become: false
+  ansible.builtin.script:
+    cmd: "bootstrap.py {{ listenarr_setup_url }} {{ listenarr_root }} {{ ansible_host }}"
+    executable: python3
+  register: listenarr_bootstrap
+  changed_when: (listenarr_bootstrap.stdout | from_json).changed
+  vars:
+    listenarr_setup_url: "{{ listenarr_url if listenarr_configured.stat.exists else 'http://127.0.0.1:' + (listenarr_port | string) }}"
+
+- name: Record successful Listenarr initialization
+  ansible.builtin.copy:
+    content: "Configured\n"
+    dest: "{{ listenarr_root }}/.configured"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Publish initialized Listenarr on the home network
+  ansible.builtin.include_tasks: compose.yml
+  vars:
+    listenarr_bind_address: "{{ ansible_host }}"
+  when: not listenarr_configured.stat.exists
+
+- name: Verify Listenarr readiness over the LAN
+  ansible.builtin.uri:
+    url: "{{ listenarr_url }}{{ listenarr_ready_path }}"
+    use_proxy: false
+  register: listenarr_lan
+  until: listenarr_lan.status == 200
+  retries: 24
+  delay: 5
+
+- name: Add Listenarr to the private Homarr board
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      {{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py
+      --listenarr-url {{ listenarr_url }}
+    executable: python3
+  register: listenarr_homarr
+  changed_when: (listenarr_homarr.stdout | from_json).added_tiles | length > 0
+
+- name: Read Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: listenarr_kuma_credentials
+  no_log: true
+
+- name: Add the Listenarr readiness monitor in Kuma
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (listenarr_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': {'name': 'Listenarr', 'url': listenarr_url + listenarr_ready_path}})
+         | to_json }}
+  register: listenarr_kuma
+  changed_when: (listenarr_kuma.stdout | from_json).monitors_created > 0
+  no_log: true

@@ -1,0 +1,7 @@
+---
+listenarr_root: /opt/listenarr
+listenarr_media_mount: /srv/media
+listenarr_port: 4545
+listenarr_image: ghcr.io/listenarrs/listenarr:canary-1.10.12@sha256:3e3a3b79957727b00786640d72466869edc08e3ca75046a7f026eb6a97083bad
+listenarr_url: "http://{{ ansible_host }}:{{ listenarr_port }}"
+listenarr_ready_path: /api/v1/system/ready

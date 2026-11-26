@@ -1,0 +1,114 @@
+---
+- name: Verify the media HDD is mounted
+  ansible.builtin.command:
+    argv: [/usr/bin/findmnt, --mountpoint, "{{ audiobookshelf_media_mount }}", --noheadings]
+  changed_when: false
+  check_mode: false
+
+- name: Create the Audiobookshelf project directory
+  ansible.builtin.file:
+    path: "{{ audiobookshelf_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Create Audiobookshelf state and library directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ audiobookshelf_uid }}"
+    group: "{{ audiobookshelf_gid }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ audiobookshelf_root }}/config", mode: '0700'}
+    - {path: "{{ audiobookshelf_root }}/metadata", mode: '0700'}
+    - {path: "{{ audiobookshelf_library_root }}/audiobooks", mode: '2775'}
+    - {path: "{{ audiobookshelf_library_root }}/podcasts", mode: '2775'}
+
+- name: Check Audiobookshelf initialization state
+  ansible.builtin.stat:
+    path: "{{ audiobookshelf_root }}/.configured"
+  register: audiobookshelf_configured
+
+- name: Start Audiobookshelf with the current listener
+  ansible.builtin.include_tasks: compose.yml
+  vars:
+    audiobookshelf_bind_address: "{{ ansible_host if audiobookshelf_configured.stat.exists else '127.0.0.1' }}"
+
+- name: Wait for the Audiobookshelf API
+  ansible.builtin.uri:
+    url: "{{ audiobookshelf_bootstrap_url }}/healthcheck"
+    use_proxy: false
+  register: audiobookshelf_health
+  until: audiobookshelf_health.status == 200
+  retries: 24
+  delay: 5
+
+- name: Verify the shared administrator login and initialize the libraries
+  become: false
+  ansible.builtin.script:
+    cmd: "bootstrap.py {{ audiobookshelf_bootstrap_url }}"
+    executable: python3
+  register: audiobookshelf_bootstrap
+  changed_when: (audiobookshelf_bootstrap.stdout | from_json).changed
+
+- name: Record successful Audiobookshelf configuration
+  ansible.builtin.copy:
+    content: "Configured\n"
+    dest: "{{ audiobookshelf_root }}/.configured"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Publish the initialized Audiobookshelf instance to the home network
+  ansible.builtin.include_tasks: compose.yml
+  vars:
+    audiobookshelf_bind_address: "{{ ansible_host }}"
+  when: not audiobookshelf_configured.stat.exists
+
+- name: Verify the initialized Audiobookshelf app over the LAN
+  ansible.builtin.uri:
+    url: "{{ audiobookshelf_url }}/status"
+    use_proxy: false
+  register: audiobookshelf_lan
+  until: audiobookshelf_lan.status == 200 and (audiobookshelf_lan.json.isInit | default(false))
+  retries: 24
+  delay: 5
+
+- name: Add Audiobookshelf to the private Homarr board
+  become: false
+  ansible.builtin.script:
+    cmd: >-
+      {{ playbook_dir }}/../roles/media_server/files/add-homarr-server-apps.py
+      --audiobookshelf-url {{ audiobookshelf_url }}
+    executable: python3
+  register: audiobookshelf_homarr
+  changed_when: (audiobookshelf_homarr.stdout | from_json).added_tiles | length > 0
+
+- name: Read the existing Kuma administrator credentials
+  ansible.builtin.slurp:
+    src: /opt/uptime-kuma/admin-credentials.json
+  register: audiobookshelf_kuma_credentials
+  no_log: true
+
+- name: Register the Audiobookshelf health check in Kuma
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - /opt/uptime-kuma
+      - exec
+      - -T
+      - uptime-kuma
+      - node
+      - -e
+      - "{{ lookup('ansible.builtin.file', playbook_dir + '/../roles/uptime_kuma/files/bootstrap.js') }}"
+    stdin: >-
+      {{ (audiobookshelf_kuma_credentials.content | b64decode | from_json)
+         | combine({'monitor': {'name': 'Audiobookshelf', 'url': audiobookshelf_url + '/healthcheck'}})
+         | to_json }}
+  register: audiobookshelf_kuma
+  changed_when: (audiobookshelf_kuma.stdout | from_json).monitors_created > 0
+  no_log: true

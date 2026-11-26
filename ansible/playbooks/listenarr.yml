@@ -1,0 +1,6 @@
+---
+- name: Install Listenarr on the Alienware
+  hosts: media_servers
+  become: true
+  roles:
+    - listenarr

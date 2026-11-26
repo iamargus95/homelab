@@ -1,0 +1,12 @@
+---
+audiobookshelf_root: /opt/audiobookshelf
+audiobookshelf_media_mount: /srv/media
+audiobookshelf_library_root: "{{ audiobookshelf_media_mount }}/library"
+audiobookshelf_port: 13378
+audiobookshelf_image: ghcr.io/advplyr/audiobookshelf:2.38.0
+audiobookshelf_uid: 1000
+audiobookshelf_gid: 1000
+audiobookshelf_url: "http://{{ ansible_host }}:{{ audiobookshelf_port }}"
+audiobookshelf_bootstrap_url: >-
+  {{ audiobookshelf_url if audiobookshelf_configured.stat.exists
+     else 'http://127.0.0.1:' + (audiobookshelf_port | string) }}
